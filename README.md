@@ -5,8 +5,7 @@ To use this sample you need a web server. Make sure you install git command line
 
 For Windows (IIS)
 
-cd c:\inetpub\wwwroot
-git clone https://github.com/hussein-nasser/unjs.git
-
-Open Chrome and type in http://servername/unjs
+* cd c:\inetpub\wwwroot
+* git clone https://github.com/hussein-nasser/unjs.git
+* Open Chrome and type in http://servername/unjs
 
