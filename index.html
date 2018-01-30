@@ -1,0 +1,401 @@
+<!--
+//Author : Hussein Nasser
+//Date   : Jan-23-2018
+//Email  : hnasser@esri.com
+//Twitter: @hnasr
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Utility Network - Web Trace Sample - Javascript</title>
+    <script src = 'https://js.arcgis.com/4.6'></script>
+    <script src = 'utilitynetwork.js'></script>
+    <script src = 'portal.js'></script>
+	<link rel = "stylesheet" href = "https://js.arcgis.com/4.6/esri/css/main.css">
+</head>
+ 
+ 
+<body>
+    <h4>Utility Network - Web Trace Sample</h4>
+    <table>
+        <tr>
+            <td valign = top>
+                <table id = 'tblMain'>
+                        <tr>
+                            <td><label>Enterprise Url: </label></td><td><input type="text" id = "portalUrl" value = "https://enterprisehost/portal" style = 'width:300px'></td>
+                        </tr>
+                        <tr>
+                            <td><label>Username: </label></td><td> <input type="text" id = "username" value = "" style = 'width:150px'></td>
+                        </tr>
+                        <tr>
+                            <td><label>Password: </label></td><td><input type="password" id = "password" value = "" style = 'width:150px'></td>
+                        </tr>
+                        <tr>
+                            <td colspan =2 align =right><button id = 'btnConnect'>Connect</button></td>
+                        </tr>
+                        <tr>
+                            <td><label>Items</label></td><td><select id = 'cmbItems'></select></td>
+                        </tr>
+                        <tr>
+                                <td><label>Domain Networks</label></td><td><select id = 'cmbDomainNetworks'></select></td>
+                        </tr>  
+                        <tr>
+                                <td><label>Tiers</label></td><td><select id = 'cmbTiers'></select></td>
+                        </tr>
+                        <tr>
+                                <td><label>Subnetworks</label></td><td><select id = 'cmbSubnetworks'></select></td>
+                        </tr> 
+                        <tr>
+                            <td colspan = 2 align = right><button id = 'btnClear'>Clear</button><button id = 'btnTrace'>Trace</button> </td>
+                        </tr>
+                      
+                        <tr>
+                            <td colspan = 2><label id = 'lblStatus'></label></td>
+                        </tr>
+                    </table>
+            </td>
+            <td>
+                       <table>
+                            <tr>
+                                <td><div id = 'mapview' style='width:900px;height:700px'></div></td>
+                            </tr>
+                        </table>
+            </td>
+            
+        </tr>
+    </table>
+   
+
+  
+
+<script> 
+    let portal;
+    let mapView;
+    let GraphicClass;
+    let un; 
+    const SELECTION_COLOR = [136, 220, 232, 0.7];
+    const SELECTION_SIZE = 4;
+    const OID_PAGE = 100; //how many objectids to send per request for the drawing.. less means more requests , more means less requests .. max depends on the backend database..
+    let traceStart;
+    const DEFAULT_SPATIAL_REFERENCE =   {
+                "wkid": 102100,
+                "latestWkid": 3857
+                }
+
+    let CHROME = (navigator.userAgent.toString().toLowerCase().indexOf("chrome") != -1);
+     
+    if (!CHROME)
+        alert("Utility network Web Trace sample only supported on chrome .. Keep watching the repo for updates")
+
+    //update status function
+    let updateStatus = text => document.getElementById("lblStatus").textContent = text;
+  
+   //Pull up all required drop downlists and buttons
+    let cmbItems = document.getElementById("cmbItems");
+    let cmbDomainNetworks = document.getElementById("cmbDomainNetworks");
+    let cmbTiers = document.getElementById("cmbTiers");
+    let cmbSubnetworks = document.getElementById("cmbSubnetworks");
+    let btnTrace = document.getElementById("btnTrace");
+    let btnClear = document.getElementById("btnClear");
+  
+     
+    //connect to portal
+    document.getElementById("btnConnect").addEventListener("click", function() {     
+        let portalUrl = document.getElementById("portalUrl").value;
+        let username = document.getElementById("username").value;
+        let password = document.getElementById("password").value;
+        //clear the list of services.
+        while (cmbItems.firstChild) cmbItems.removeChild(cmbItems.firstChild);
+        portal = new Portal(portalUrl,username, password);    
+        portal.connect()
+        .then(token => portal.items())
+        .then(myItems =>  populateItems(myItems))
+        .catch(rejected => updateStatus ("Unable to connect to portal. " + rejected));
+    })
+
+    //when a user clicks on clear         
+    btnClear.addEventListener("click",  e => mapView.graphics = [])
+     
+    //when a user selects a web map
+    cmbItems.addEventListener("change", async function (e) {
+         
+        let itemId = e.target.options[e.target.selectedIndex].id;
+        updateStatus("Loading item...");
+        let itemData = await portal.loadItem(itemId);
+        updateStatus("Item Loaded");
+        // get the first operational layer so we know the feature service
+        let serviceUrl = itemData.operationalLayers[0].url;
+        let arrayService = serviceUrl.split("/")
+        arrayService.length--;       
+        serviceUrl = arrayService.join("/");
+        un = new UtilityNetwork(portal.token, serviceUrl );
+        let serviceJson = un.featureServiceJson;    
+        
+        //load utility network in memory
+        await un.load();
+        
+        //load the utility network and the map
+        loadUtilityNetwork(un, itemId, "mapview");
+
+        //Only activate the trace event when a map is loaded.
+        btnTrace.onclick = function(){
+            let domainNetworkName = cmbDomainNetworks.options[cmbDomainNetworks.selectedIndex].textContent;
+            let tierName = cmbTiers.options[cmbTiers.selectedIndex].textContent;
+            let subnetworkName = cmbSubnetworks.options[cmbSubnetworks.selectedIndex].textContent;
+            traceStart = new Date().getTime();
+            
+            updateStatus("Tracing...");
+            //run subnetwork trace get the result and draw it
+            un.subnetworkTrace(domainNetworkName, tierName , subnetworkName)
+            .then(traceResults =>  drawTraceResults(un, traceResults))
+            .catch(err=> updateStatus(err));
+            }
+
+        //when a user selects a domain network
+        cmbDomainNetworks.onchange = e => {      
+        //clear tiers, subnetworks
+        while(cmbTiers.firstChild)cmbTiers.removeChild(cmbTiers.firstChild);
+        while(cmbSubnetworks.firstChild)cmbSubnetworks.removeChild(cmbSubnetworks.firstChild); 
+        let selectedDomainNetwork = e.target.options[e.target.selectedIndex].textContent;
+
+        let domainNetwork = un.getDomainNetwork(selectedDomainNetwork);
+
+        domainNetwork.tiers.forEach(tier => { 
+            let tn = document.createElement("option");
+            tn.textContent  = tier.name;
+            cmbTiers.appendChild(tn);
+        })
+        cmbTiers.selectedIndex=-1; 
+
+        }
+
+
+        cmbTiers.onchange = e => {
+            while(cmbSubnetworks.firstChild)cmbSubnetworks.removeChild(cmbSubnetworks.firstChild);
+            let selectedDomainNetwork = cmbDomainNetworks.options[cmbDomainNetworks.selectedIndex].textContent;
+            let selectedTier = cmbTiers.options[cmbTiers.selectedIndex].textContent;
+
+            un.getSubnetworks(selectedDomainNetwork,selectedTier).then(results=>{
+
+        
+            results.features.forEach(feature=> {
+                let sn = document.createElement("option");
+                for (let propt in feature.attributes)
+                    if (propt.toUpperCase() === "SUBNETWORKNAME")
+                    sn.textContent  = feature.attributes[propt];
+                
+                cmbSubnetworks.appendChild(sn);
+            })
+            cmbSubnetworks.selectedIndex=-1;
+            })
+        }
+
+        cmbSubnetworks.onchange = function (){
+
+        mapView.graphics = []
+        let subnetworkName = cmbSubnetworks.options[cmbSubnetworks.selectedIndex].textContent;
+        un.query(un.subnetLineLayerId, "SUBNETWORKNAME = '" + subnetworkName + "'")
+        .then (rowsJson => {
+            let featureLayer = mapView.byId(un.subnetLineLayerId);       
+            let polylineGraphic =  getGraphic("line", rowsJson.features[0].geometry);        
+            mapView.graphics.add(polylineGraphic);
+            mapView.then(e=>mapView.goTo(polylineGraphic.geometry));
+            })
+        .catch(err=>updateStatus("Failed to highlight subnetwork. Make sure you run update subnetworks to create the subnetlines.  "))
+        }
+
+//populate domain networks, clear list first
+while(cmbDomainNetworks.firstChild)cmbDomainNetworks.removeChild(cmbDomainNetworks.firstChild);
+while(cmbTiers.firstChild)cmbTiers.removeChild(cmbTiers.firstChild);
+while(cmbSubnetworks.firstChild)cmbSubnetworks.removeChild(cmbSubnetworks.firstChild); 
+un.dataElement.domainNetworks.forEach(domainNetwork => { 
+        let dn = document.createElement("option");
+        dn.textContent  = domainNetwork.domainNetworkName;
+        cmbDomainNetworks.appendChild(dn);
+    })
+//select nothing
+cmbDomainNetworks.selectedIndex= -1;
+ 
+    });
+ 
+    //break array into manageable pieces 
+    let createGroupedArray =  (arr, chunkSize) => {
+        let groups = [], i;
+        for (let i = 0; i < arr.length; i += chunkSize) {
+            groups.push(arr.slice(i, i + chunkSize));
+        }
+        return groups;
+    }
+ 
+    
+    //get a graphic from geometry helper function
+    function getGraphic(type, geometry, color=SELECTION_COLOR)
+    {   
+
+
+        let symbol;
+        let geometryObject;
+
+        switch (type)
+        {
+        case "point" :
+              
+            symbol = {
+            type: "simple-marker", // autocasts as new SimpleMarkerSymbol()
+            color: color,
+            size:SELECTION_SIZE,
+            outline: { // autocasts as new SimpleLineSymbol()
+            color: color,
+            width: SELECTION_SIZE
+            }
+          }
+
+            geometryObject = {
+            type: "point",
+            x: geometry.x,
+            y: geometry.y,
+            spatialReference :  DEFAULT_SPATIAL_REFERENCE
+                }
+
+                break;
+        case "line":
+      
+            symbol= {
+                        type: "simple-line", // autocasts as SimpleLineSymbol()
+                        color: color,
+                        width: SELECTION_SIZE
+                    };
+              
+            geometryObject = {
+            type: "polyline",
+            paths: geometry.paths,
+            spatialReference:  DEFAULT_SPATIAL_REFERENCE
+                }
+        break;
+        case "polygon":
+
+      symbol = {
+        type: "simple-fill", // autocasts as new SimpleFillSymbol()
+        color: color,
+        outline: { // autocasts as new SimpleLineSymbol()
+          color: [255, 255, 255],
+          width: SELECTION_SIZE
+        }
+      };
+              
+
+        geometryObject = {
+            type: "polygon",
+            rings: geometry.rings,
+            spatialReference:  DEFAULT_SPATIAL_REFERENCE
+        }
+
+    }
+
+        return   new GraphicClass({
+            geometry: geometryObject,
+            symbol: symbol,
+            
+            });
+  
+    }
+
+    //load Utility Network and Map
+    function loadUtilityNetwork(utilityNetwork, itemId, mapViewDiv)
+        {
+            let token = portal.token;
+            let serviceJson  = utilityNetwork.featureServiceJson;
+            let serviceUrl = utilityNetwork.featureServiceUrl;
+            
+            require(["esri/Map", "esri/views/MapView", "esri/layers/FeatureLayer", "esri/layers/MapImageLayer","esri/WebMap", "esri/identity/IdentityManager", "esri/widgets/LayerList", "esri/layers/GraphicsLayer", "esri/Graphic"],
+             function (Map, MapView, FeatureLayer, MapLayer, WebMap,  IdentityManager, Toc, GraphicsLayer, Graphic){
+                 
+                GraphicClass = Graphic;
+                IdentityManager.registerToken({server: serviceUrl, token: token});
+                IdentityManager.registerToken({server: portal.url, token: token});
+                let mapviewDiv = document.getElementById(mapViewDiv);
+
+                while (mapviewDiv.firstChild) mapviewDiv.removeChild(mapviewDiv.firstChild);
+                //let map = new Map ({basemap:"streets-night-vector"}); //streets-night-vector
+                let webmap = new WebMap({portalItem : {id : itemId, 
+                portal : { 
+                    url: portal.url
+                }
+                }});
+ 
+                mapView = new MapView({container: mapViewDiv, map : webmap})
+                mapView.byId = layerId => mapView.map.layers.find(l => l.layerId == layerId);
+                    
+            })  
+        
+        }
+
+        
+        function populateItems (myItems) {
+
+            //populate domain networks, clear list first
+            while(cmbDomainNetworks.firstChild)cmbDomainNetworks.removeChild(cmbDomainNetworks.firstChild);
+            while(cmbTiers.firstChild)cmbTiers.removeChild(cmbTiers.firstChild);
+            while(cmbSubnetworks.firstChild)cmbSubnetworks.removeChild(cmbSubnetworks.firstChild);
+            //the better way for this usecase is to send a filter to the server to only return web map but we want all items in the client just incase we want to do more.
+                
+            myItems.filter(a => a.type === "Web Map").forEach( a => {    
+                let listItem = document.createElement("option");
+                listItem.textContent = a.title;
+                listItem.url = a.url;
+                listItem.id = a.id;
+                cmbItems.appendChild(listItem);                                  
+                } )
+
+             if (cmbItems.options.length === 0) updateStatus("No web maps were found for user  " + portal.username + '. Create a webmap from Portal or publish one from Pro and try again');
+                    cmbItems.selectedIndex = -1;
+     
+        }
+
+        //draw the trace result.
+        function drawTraceResults(un, traceResults)
+        {  
+            //record trace time
+        console.log ("Trace time: " + (new Date().getTime() - traceStart) + " ms");
+        let drawingStartTime = new Date().getTime();
+        let promises = [];
+        for (let layerId in traceResults.layers)
+        {
+            let layerObj = traceResults.layers[layerId];
+            let subOids = createGroupedArray(layerObj.objectIds, OID_PAGE);
+            subOids.forEach(oidGroup =>  promises.push(un.query(layerId, "1=1", layerObj, oidGroup.join(","))));            
+        }
+        //query all layers at once and wait until all results come in at
+        Promise.all(promises)
+        .then(rows => 
+            {   
+                mapView.graphics = [];
+                let graphics = [];
+                let geometries = [];
+                let featureLayer = mapView.byId(rows.layerId);
+                for (let featureSet of rows)
+                {
+                    let layerObj = featureSet.obj;
+                    if (featureSet.features != undefined)
+                    featureSet.features.forEach(g => graphics.push( getGraphic(layerObj.type, g.geometry)) )                    
+                 }
+
+                console.log ("Drawing time: " + (new Date().getTime() - drawingStartTime) + " ms");
+                                 
+                 mapView.graphics.addMany(graphics);
+                 updateStatus("Done");
+                 
+            })
+        .catch(err => updateStatus("Error while parsing trace results"))
+
+        }
+
+    
+
+</script>
+
+</body>
+</html>
