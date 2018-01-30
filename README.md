@@ -9,3 +9,4 @@ For Windows (IIS)
 * git clone https://github.com/hussein-nasser/unjs.git
 * Open Chrome and type in http://servername/unjs
 
+For other web servers simply copy the folder unjs to the root of your webserver and serve the static files from there.
