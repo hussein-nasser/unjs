@@ -1,7 +1,6 @@
 
 //Author : Hussein Nasser
 //Date   : Jan-23-2018
-//Email  : hnasser@esri.com
 //Twitter: @hnasr
 
     class Portal{

@@ -1,7 +1,6 @@
 <!--
 //Author : Hussein Nasser
 //Date   : Jan-23-2018
-//Email  : hnasser@esri.com
 //Twitter: @hnasr
 -->
 <!DOCTYPE html>
@@ -178,9 +177,10 @@
             let selectedDomainNetwork = cmbDomainNetworks.options[cmbDomainNetworks.selectedIndex].textContent;
             let selectedTier = cmbTiers.options[cmbTiers.selectedIndex].textContent;
 
-            un.getSubnetworks(selectedDomainNetwork,selectedTier).then(results=>{
-
-        
+            updateStatus("Querying subnetworks ...")
+            un.getSubnetworks(selectedDomainNetwork,selectedTier)
+            .then(results=>{
+            updateStatus("Done")
             results.features.forEach(feature=> {
                 let sn = document.createElement("option");
                 for (let propt in feature.attributes)
@@ -357,9 +357,12 @@ cmbDomainNetworks.selectedIndex= -1;
 
         //draw the trace result.
         function drawTraceResults(un, traceResults)
-        {  
+        { 
+
+        let traceTime = (new Date().getTime() - traceStart);
+        let drawingTime;
             //record trace time
-        console.log ("Trace time: " + (new Date().getTime() - traceStart) + " ms");
+        console.log ("Trace time: " + traceTime + " ms");
         let drawingStartTime = new Date().getTime();
         let promises = [];
         for (let layerId in traceResults.layers)
@@ -382,11 +385,12 @@ cmbDomainNetworks.selectedIndex= -1;
                     if (featureSet.features != undefined)
                     featureSet.features.forEach(g => graphics.push( getGraphic(layerObj.type, g.geometry)) )                    
                  }
-
-                console.log ("Drawing time: " + (new Date().getTime() - drawingStartTime) + " ms");
+                
+                drawingTime = (new Date().getTime() - drawingStartTime)
+                console.log ("Drawing time: " + drawingTime + " ms");
                                  
                  mapView.graphics.addMany(graphics);
-                 updateStatus("Done");
+                 updateStatus("Trace completed successfully. Trace time: " + traceTime + " ms, Drawing Time: " + drawingTime + " ms");
                  
             })
         .catch(err => updateStatus("Error while parsing trace results"))

@@ -1,7 +1,6 @@
 'use strict';
 //Author : Hussein Nasser
 //Date   : Jan-23-2018
-//Email  : hnasser@esri.com
 //Twitter: @hnasr
 
 class UtilityNetwork {
@@ -377,8 +376,10 @@ class UtilityNetwork {
             }
         };
 
-        xhr.onerror = () => reject({status: this.status, statusText: xhr.statusText});
+        //xhr.onerror =   err => reject({status: this.status, statusText: xhr.statusText}) ;
+        xhr.onerror =   err => reject(err) ;
         
+
         if (opts.headers) 
         Object.keys(opts.headers).forEach(  key => xhr.setRequestHeader(key, opts.headers[key]) )
 
