@@ -239,6 +239,24 @@ class UtilityNetwork {
             return this.getLayer("esriUNFCUTLine");
         }
 
+        //determines if the layerid is a line or point... 
+        isLayerEdge(layerId) {
+
+            let domainNetworks = this.dataElement.domainNetworks;
+
+            for (let i = 0; i < domainNetworks.length; i ++)
+            {
+                let domainNetwork = domainNetworks[i];
+              
+                for (let j = 0; j < domainNetwork.edgeSources.length; j ++)
+                    if (domainNetwork.edgeSources[j].layerId === layerId)
+                        return true;
+            }
+
+            return false;
+        }
+
+
         //get layer id from Source Id used to map sourceid to layer id
         getLayerIdfromSourceId(sourceId)
         { 
@@ -274,13 +292,41 @@ class UtilityNetwork {
         {
             let traceLocations = [];
             //terminalId  percentAlong: 0
+            //line starting point [{"traceLocationType":"startingPoint","globalId":"{00B313AC-FBC4-4FF4-9D7A-6BF40F4D4CAD}","percentAlong":0.84695770913918678}]
+            startingPoints.forEach(s=> {
+                //if layerid doesn't exists get it from the sourceid..
+                if (s.layerId === undefined) s.layerId = this.getLayerIdfromSourceId(s.sourceId);
 
-            startingPoints.forEach(s=> traceLocations.push({traceLocationType: "startingPoint", globalId:s.globalId , terminalId: s.terminalId } ));
-            barriers.forEach(s=> traceLocations.push({traceLocationType: "barrier", globalId:s.globalId , terminalId: s.terminalId  } ));
+                if (this.isLayerEdge(s.layerId) === true)
+                    traceLocations.push({traceLocationType: "startingPoint", globalId:s.globalId , percentAlong: 0.5 } ) //add the starting point to themiddle of the line temporary
+                else {
+                    //if its a junction, get the terminal configuration and add all possible terminals temrporary..
+                    let at = this.getAssetType(s.layerId, s.assetGroupCode, s.assetTypeCode);
+                    let tc = this.getTerminalConfiguration(at.terminalConfigurationId)
+                    tc.terminals.forEach(t => traceLocations.push({traceLocationType: "startingPoint", globalId:s.globalId , terminalId: t.terminalId } ))                    
+                }
+                   
+            }
+            );
+
+
+            barriers.forEach(s=> {
+                if (this.isLayerEdge(s.layerId) === true)
+                    traceLocations.push({traceLocationType: "barrier", globalId:s.globalId , percentAlong: 0.5 } ) //add the starting point to themiddle of the line temporary
+                else{
+                    //if its a junction, get the terminal configuration and add all possible terminals temrporary..
+                    let at = this.getAssetType(s.layerId, s.assetGroupCode, s.assetTypeCode);
+                    let tc = this.getTerminalConfiguration(at.terminalConfigurationId)
+                    tc.terminals.forEach(t => traceLocations.push({traceLocationType: "barrier", globalId:s.globalId , terminalId: t.terminalId } ))                    
+                }
+                   
+            }
+            );
+ 
             
             return new Promise((resolve, reject) => {
  
-                let subnetworkDef = {"includeContainers":false,"includeContent":false,"includeStructures":false,"includeBarriers":true,"validateConsistency":true,"domainNetworkName":"","tierName":"","targetTierName":"","subnetworkName":"","diagramTemplateName":"","shortestPathNetworkAttributeName":"","filterBitsetNetworkAttributeName":"","traversabilityScope":"junctionsAndEdges","conditionBarriers":[],"functionBarriers":[],"arcadeExpressionBarrier":"","filterBarriers":[],"filterFunctionBarriers":[],"filterScope":"junctionsAndEdges","functions":[],"nearestNeighbor":{"count":-1,"costNetworkAttributeName":"","nearestCategories":[],"nearestAssets":[]},"outputFilters":[],"outputConditions":[],"propagators":[]}
+                let subnetworkDef = {"includeContainers":false,"includeContent":false,"includeStructures":false,"includeBarriers":true,"validateConsistency":false,"domainNetworkName":"","tierName":"","targetTierName":"","subnetworkName":"","diagramTemplateName":"","shortestPathNetworkAttributeName":"","filterBitsetNetworkAttributeName":"","traversabilityScope":"junctionsAndEdges","conditionBarriers":[],"functionBarriers":[],"arcadeExpressionBarrier":"","filterBarriers":[],"filterFunctionBarriers":[],"filterScope":"junctionsAndEdges","functions":[],"nearestNeighbor":{"count":-1,"costNetworkAttributeName":"","nearestCategories":[],"nearestAssets":[]},"outputFilters":[],"outputConditions":[],"propagators":[]}
  
                 //serviceJson load each layer.. 
                let ar = this.featureServiceUrl.split("/");
@@ -332,7 +378,8 @@ class UtilityNetwork {
                 let tier = this.getTier(domainNetworkName, tierName);
                 let subnetworkDef = tier.updateSubnetworkTraceConfiguration;
                 subnetworkDef.subnetworkName = subnetworkName;
-
+                //disable consistency
+                subnetworkDef.validateConsistency = false;
                  
                 //build the rest end point for the trace
                let ar = this.featureServiceUrl.split("/");
