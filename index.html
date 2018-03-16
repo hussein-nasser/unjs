@@ -53,12 +53,13 @@
                             <tr>
                                  <td><label>Subnetworks</label></td><td><select id = 'cmbSubnetworks'></select></td>
                             </tr> 
+                         
                             <tr>
-                                <td colspan = 2 align = right><button id = 'btnTrace'>Trace</button> </td>
+                                <td colspan = 2  align = right><button id = 'btnClearTraceLocations'>Clear</button> <button id = 'btnStartingPoint'>Set Starting Points</button><button id = 'btnBarriers'>Set Barriers</button> </td>
+                                
                             </tr>
                             <tr>
-                                <td colspan = 2  align = right><button id = 'btnClearTraceLocations'>Clear</button> <button id = 'btnStartingPoint'>Set Starting Points</button><button id = 'btnBarriers'>Set Barriers</button><button id = 'btnTraceConnected'>Trace</button>  </td>
-                                
+                                <td colspan = 2 align = right><button id = 'btnTraceConnected'>Connected Trace</button> <button id = 'btnTrace'>Subnetwork Trace</button> <button id = 'btnTraceIsolation'>Isolation Trace (Water only)</button>  </td> 
                             </tr>
                             <tr>
                                 <td colspan = 2 align = left><table id ='traceLocations'></table></td>                                
@@ -93,10 +94,11 @@
     let locationId = 0;
     const SELECTION_COLOR = [136, 220, 232, 0.7];
     const SELECTION_SIZE = 4;
+    const TRACING_STARTLOCATION_BUFFER = 3;
     const TRACING_STARTPOINT_COLOR = [20, 158, 29, 0.7];
     const TRACING_BARRIER_COLOR = [211, 23, 51, 0.7];
-    const TRACELOCATION_START = 1;
-    const TRACELOCATION_BARRIER = 0;
+    const TRACELOCATION_START = "startingPoint";
+    const TRACELOCATION_BARRIER = "barrier";
 
     const DEFAULT_SPATIAL_REFERENCE =   {
                 "wkid": 102100,
@@ -139,7 +141,23 @@
                     rowTraceLocation.appendChild(columnTerminal);
                     let deleteTraceLocation = document.createElement("button");
                     deleteTraceLocation.textContent = "X"
-                    deleteTraceLocation.addEventListener("click", e => traceLocations.removeChild(rowTraceLocation));
+                    deleteTraceLocation.addEventListener("click", e => {
+                        traceLocations.removeChild(rowTraceLocation);
+                        //try to remove the graphic
+                        
+                        for (let i = 0; i < gl.graphics.items.length ; i++ )
+                        {
+                            let g = gl.graphics.items[i];
+                            if (g.name === rowTraceLocation.globalId)   
+                            {                      
+                                gl.remove(g);
+                                break;
+                            }
+                          
+                        } 
+                           
+ 
+                    });
                     rowTraceLocation.appendChild(deleteTraceLocation);
                     
                     let at = un.getAssetType(g.graphic.layer.layerId,  getVal(g.graphic.attributes, "assetgroup"), getVal(g.graphic.attributes, "assettype"));
@@ -178,8 +196,8 @@
                     require(["esri/geometry/geometryEngineAsync"],  function(geometryEngineAsync) 
                     {      
                         (async function (){
-                        let bufferedGeo =  await geometryEngineAsync.buffer(g.graphic.geometry, 0.5);
-                        gl.graphics.add(getGraphic("polygon", bufferedGeo, color));
+                        let bufferedGeo =  await geometryEngineAsync.buffer(g.graphic.geometry, TRACING_STARTLOCATION_BUFFER);
+                        gl.graphics.add(getGraphic("polygon", bufferedGeo, color, rowTraceLocation.globalId));
                         })();
                     });
                 })
@@ -215,12 +233,32 @@
         mapView.graphics = [];
         gl.graphics = [];
     })
-    btnTraceConnected.addEventListener("click", e => {
-        let startPoints = [];
-        let barriers = [];
-        updateStatus("Tracing...");
+
+
+
+    
+ //only for water
+ function IsolationTrace() {
+
+//run upstream trace, stop when you find protective device valves
+//trace configuration for barrier protective {"includeContainers":true,"includeContent":false,"includeStructures":true,"includeBarriers":true,"validateConsistency":true,"domainNetworkName":"Water","tierName":"Distribution System","targetTierName":"","subnetworkName":"","diagramTemplateName":"","shortestPathNetworkAttributeName":"","filterBitsetNetworkAttributeName":"","traversabilityScope":"junctionsAndEdges","conditionBarriers":[{"name":"Device Status","type":"networkAttribute","operator":"equal","value":0,"combineUsingOr":false,"isSpecificValue":true}],"functionBarriers":[],"arcadeExpressionBarrier":"","filterBarriers":[{"name":"Category","type":"category","operator":"equal","value":"Disconnecting","combineUsingOr":true,"isSpecificValue":true},{"name":"Category","type":"category","operator":"equal","value":"Protective","combineUsingOr":false,"isSpecificValue":true}],"filterFunctionBarriers":[],"filterScope":"junctionsAndEdges","functions":[],"nearestNeighbor":{"count":-1,"costNetworkAttributeName":"","nearestCategories":[],"nearestAssets":[]},"outputFilters":[],"outputConditions":[{"name":"Category","type":"category","operator":"equal","value":"Disconnecting","combineUsingOr":true,"isSpecificValue":true},{"name":"Category","type":"category","operator":"equal","value":"Protective","combineUsingOr":false,"isSpecificValue":true}],"propagators":[]}
+let traceConfiguration = {"includeContainers":true,"includeContent":false,"includeStructures":true,"includeBarriers":true,"validateConsistency":false,"domainNetworkName":"Water","tierName":"Distribution System","targetTierName":"","subnetworkName":"","diagramTemplateName":"","shortestPathNetworkAttributeName":"","filterBitsetNetworkAttributeName":"","traversabilityScope":"junctionsAndEdges","conditionBarriers":[{"name":"Device Status","type":"networkAttribute","operator":"equal","value":0,"combineUsingOr":false,"isSpecificValue":true}],"functionBarriers":[],"arcadeExpressionBarrier":"","filterBarriers":[{"name":"Category","type":"category","operator":"equal","value":"Disconnecting","combineUsingOr":true,"isSpecificValue":true},{"name":"Category","type":"category","operator":"equal","value":"Protective","combineUsingOr":false,"isSpecificValue":true}],"filterFunctionBarriers":[],"filterScope":"junctionsAndEdges","functions":[],"nearestNeighbor":{"count":-1,"costNetworkAttributeName":"","nearestCategories":[],"nearestAssets":[]},"outputFilters":[],"outputConditions":[{"name":"Category","type":"category","operator":"equal","value":"Disconnecting","combineUsingOr":true,"isSpecificValue":true},{"name":"Category","type":"category","operator":"equal","value":"Protective","combineUsingOr":false,"isSpecificValue":true}],"propagators":[]}
+let traceLocationsParam = getTraceLocationsParam();
+un.upstreamTrace(traceLocationsParam, null, null , null, traceConfiguration)
+.then(traceResults =>  drawTraceResults(un, traceResults, TRACING_BARRIER_COLOR))
+.catch(err=> updateStatus(err));
+
+//drawTraceResults
+}
+
+
+
+    //read the form and build the trace locations 
+    function getTraceLocationsParam () {
+        
+        let traceLocationsParam = [];
         traceLocations.childNodes.forEach(li =>
-        {  
+        {    
          let startLocation = {};
          startLocation.globalId = li.globalId;
          startLocation.layerId = li.layerId;
@@ -231,24 +269,39 @@
             let cmbTerminalConfig = document.getElementById("cmbTerminalConfig" + li.locationId);
             startLocation.terminalId = cmbTerminalConfig.options[cmbTerminalConfig.selectedIndex].value;
         }
+        startLocation.traceLocationType = li.traceLocationType;
+        traceLocationsParam.push(startLocation)
+        });
 
-         if (li.traceLocationType === TRACELOCATION_START) 
-            startPoints.push(startLocation)         
-          else          
-            barriers.push(startLocation) 
-    }
-       
-        );
-       //only attempt to trace when there is at leats one starting point
-       if (!startPoints.length)
+      return traceLocationsParam;
+ 
+  }
+
+    btnTraceConnected.addEventListener("click", e => {
+        updateStatus("Tracing...");
+        let traceLocationsParam = getTraceLocationsParam();
+    //only attempt to trace when there is at leats one starting point
+     if (!traceLocationsParam.length)
        {
            updateStatus("No starting points were found.");
-           return
+           return;
        }
-       un.connectedTrace(startPoints, barriers).then (traceResults =>  drawTraceResults(un, traceResults)).catch(er=>updateStatus(er))
 
-    })
+       un.connectedTrace(traceLocationsParam).then (traceResults =>  drawTraceResults(un, traceResults)).catch(er=>updateStatus(er))
 
+
+    });
+
+
+    
+    btnTraceIsolation.addEventListener("click", e => {
+        updateStatus("Running Isolation Tracing...");
+        IsolationTrace();
+           });
+
+          
+
+   
     btnBarriers.addEventListener("click" , e => {
             
         if (activeTraceLocation == undefined)  mapView.on("click", mapClick);
@@ -293,17 +346,17 @@
         btnTrace.onclick = function(){
         let domainNetworkName = cmbDomainNetworks.options[cmbDomainNetworks.selectedIndex].textContent;
         let tierName = cmbTiers.options[cmbTiers.selectedIndex].textContent;
-        let subnetworkName = cmbSubnetworks.options[cmbSubnetworks.selectedIndex].textContent;
+        let subnetworkName = "";
+        //if subnetwork is not selected
+        if (cmbSubnetworks.options[cmbSubnetworks.selectedIndex] != undefined)
+            subnetworkName  = cmbSubnetworks.options[cmbSubnetworks.selectedIndex].textContent;
+
         let traceStart = new Date().getTime();
         updateStatus("Tracing...");
-        un.subnetworkTrace(domainNetworkName, tierName , subnetworkName).then(
-        
-        traceResults =>  drawTraceResults(un, traceResults)
- 
-          
-
-        ).catch(err=> updateStatus(err));
-
+        let traceLocationsParam = getTraceLocationsParam();
+        un.subnetworkTrace(traceLocationsParam, domainNetworkName, tierName , subnetworkName)
+        .then(traceResults =>  drawTraceResults(un, traceResults))
+        .catch(err=> updateStatus(err));
         }
 
 
@@ -346,6 +399,8 @@
         cmbSubnetworks.selectedIndex=-1;
         })
         }
+        
+
 
         cmbSubnetworks.onchange = function (){
 
@@ -443,7 +498,7 @@ cmbDomainNetworks.selectedIndex= -1;
 
     
 
-    function getGraphic(type, geometry, color=SELECTION_COLOR)
+    function getGraphic(type, geometry, color=SELECTION_COLOR, name)
     {   
 
 
@@ -509,7 +564,7 @@ cmbDomainNetworks.selectedIndex= -1;
         return   new GraphicClass({
             geometry: geometryObject,
             symbol: symbol,
-            
+            name: name
             });
   
     }
@@ -552,7 +607,7 @@ cmbDomainNetworks.selectedIndex= -1;
 
      
 
-        function drawTraceResults(un, traceResults)
+        function drawTraceResults(un, traceResults, color = SELECTION_COLOR)
         {  
  
         let promises = [];
@@ -581,11 +636,11 @@ cmbDomainNetworks.selectedIndex= -1;
                 );*/
 
                      for (let g of featureSet.features)
-                    {  
+                     {  
                        
-                       let graphic = getGraphic(layerObj.type, g.geometry);
+                       let graphic = getGraphic(layerObj.type, g.geometry, color);
                        graphics.push(graphic);                        
-                   } 
+                    } 
                                             
                     
                  }
@@ -617,6 +672,9 @@ cmbDomainNetworks.selectedIndex= -1;
             })
 
         }
+
+
+
 
 let getVal = function(obj, prop){
   prop = (prop + "").toLowerCase();

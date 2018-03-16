@@ -2,9 +2,10 @@
 //Author : Hussein Nasser
 //Date   : Jan-23-2018
 //Twitter: @hnasr
-
+const emptyTraceConfiguration = {"includeContainers":false,"includeContent":false,"includeStructures":false,"includeBarriers":true,"validateConsistency":false,"domainNetworkName":"","tierName":"","targetTierName":"","subnetworkName":"","diagramTemplateName":"","shortestPathNetworkAttributeName":"","filterBitsetNetworkAttributeName":"","traversabilityScope":"junctionsAndEdges","conditionBarriers":[],"functionBarriers":[],"arcadeExpressionBarrier":"","filterBarriers":[],"filterFunctionBarriers":[],"filterScope":"junctionsAndEdges","functions":[],"nearestNeighbor":{"count":-1,"costNetworkAttributeName":"","nearestCategories":[],"nearestAssets":[]},"outputFilters":[],"outputConditions":[],"propagators":[]}
+ 
 class UtilityNetwork {
-    
+
         constructor(token, featureServiceUrl)
         {   
 
@@ -287,46 +288,50 @@ class UtilityNetwork {
             return layerObj;
         }
 
-        //run connected Trace
-        connectedTrace(startingPoints, barriers)
-        {
+        //receives an array of starting locations and transforms it for the rest params.. 
+        buildTraceLocations (traceLocationsParam) {
+
             let traceLocations = [];
             //terminalId  percentAlong: 0
             //line starting point [{"traceLocationType":"startingPoint","globalId":"{00B313AC-FBC4-4FF4-9D7A-6BF40F4D4CAD}","percentAlong":0.84695770913918678}]
-            startingPoints.forEach(s=> {
+            traceLocationsParam.forEach(s=> {
                 //if layerid doesn't exists get it from the sourceid..
                 if (s.layerId === undefined) s.layerId = this.getLayerIdfromSourceId(s.sourceId);
 
                 if (this.isLayerEdge(s.layerId) === true)
-                    traceLocations.push({traceLocationType: "startingPoint", globalId:s.globalId , percentAlong: 0.5 } ) //add the starting point to themiddle of the line temporary
+                    traceLocations.push({traceLocationType: s.traceLocationType, globalId:s.globalId , percentAlong: 0.5 } ) //add the starting point to themiddle of the line temporary
                 else {
-                    //if its a junction, get the terminal configuration and add all possible terminals temrporary..
-                    let at = this.getAssetType(s.layerId, s.assetGroupCode, s.assetTypeCode);
-                    let tc = this.getTerminalConfiguration(at.terminalConfigurationId)
-                    tc.terminals.forEach(t => traceLocations.push({traceLocationType: "startingPoint", globalId:s.globalId , terminalId: t.terminalId } ))                    
+                    //if its a junction, check if a terminalid is passed if not then get the terminal configuration and add all possible terminals temrporary..
+                    if (s.terminalId === undefined && s.terminalId != -1) {
+                        let at = this.getAssetType(s.layerId, s.assetGroupCode, s.assetTypeCode);
+                        let tc = this.getTerminalConfiguration(at.terminalConfigurationId)
+                        tc.terminals.forEach(t => traceLocations.push({traceLocationType: s.traceLocationType, globalId:s.globalId , terminalId: t.terminalId } ))                    
+                        }
+                    else
+                    {
+                        traceLocations.push({traceLocationType: s.traceLocationType, globalId:s.globalId , terminalId: s.terminalId } )                   
+                    }
                 }
                    
             }
             );
 
+            return traceLocations;
+        }
+        
+        //run connected Trace
+        connectedTrace(traceLocationsParam, traceConfiguration)
+        {                      
+            return this.Trace(traceLocationsParam, "connected", traceConfiguration);
+        }
 
-            barriers.forEach(s=> {
-                if (this.isLayerEdge(s.layerId) === true)
-                    traceLocations.push({traceLocationType: "barrier", globalId:s.globalId , percentAlong: 0.5 } ) //add the starting point to themiddle of the line temporary
-                else{
-                    //if its a junction, get the terminal configuration and add all possible terminals temrporary..
-                    let at = this.getAssetType(s.layerId, s.assetGroupCode, s.assetTypeCode);
-                    let tc = this.getTerminalConfiguration(at.terminalConfigurationId)
-                    tc.terminals.forEach(t => traceLocations.push({traceLocationType: "barrier", globalId:s.globalId , terminalId: t.terminalId } ))                    
-                }
-                   
-            }
-            );
- 
+        //generic trace function
+        Trace (traceLocationsParam, traceType, traceConfiguration) {
             
+            let traceLocations = this.buildTraceLocations (traceLocationsParam);
             return new Promise((resolve, reject) => {
- 
-                let subnetworkDef = {"includeContainers":false,"includeContent":false,"includeStructures":false,"includeBarriers":true,"validateConsistency":false,"domainNetworkName":"","tierName":"","targetTierName":"","subnetworkName":"","diagramTemplateName":"","shortestPathNetworkAttributeName":"","filterBitsetNetworkAttributeName":"","traversabilityScope":"junctionsAndEdges","conditionBarriers":[],"functionBarriers":[],"arcadeExpressionBarrier":"","filterBarriers":[],"filterFunctionBarriers":[],"filterScope":"junctionsAndEdges","functions":[],"nearestNeighbor":{"count":-1,"costNetworkAttributeName":"","nearestCategories":[],"nearestAssets":[]},"outputFilters":[],"outputConditions":[],"propagators":[]}
+                if (traceConfiguration === undefined) 
+                    traceConfiguration = emptyTraceConfiguration; //{"includeContainers":false,"includeContent":false,"includeStructures":false,"includeBarriers":true,"validateConsistency":false,"domainNetworkName":"","tierName":"","targetTierName":"","subnetworkName":"","diagramTemplateName":"","shortestPathNetworkAttributeName":"","filterBitsetNetworkAttributeName":"","traversabilityScope":"junctionsAndEdges","conditionBarriers":[],"functionBarriers":[],"arcadeExpressionBarrier":"","filterBarriers":[],"filterFunctionBarriers":[],"filterScope":"junctionsAndEdges","functions":[],"nearestNeighbor":{"count":-1,"costNetworkAttributeName":"","nearestCategories":[],"nearestAssets":[]},"outputFilters":[],"outputConditions":[],"propagators":[]}
  
                 //serviceJson load each layer.. 
                let ar = this.featureServiceUrl.split("/");
@@ -335,17 +340,16 @@ class UtilityNetwork {
                  let traceJson = {
                     f: "json",
                     token: this.token,
-                    traceType : "connected",
+                    traceType : traceType,
                     traceLocations: JSON.stringify(traceLocations),
-                    traceConfiguration: JSON.stringify(subnetworkDef)
+                    traceConfiguration: JSON.stringify(traceConfiguration)
                 }
                 let un = this;
                 makeRequest({method:'POST', params: traceJson, url: traceUrl })
-                .then(featuresJson=> resolve(this.buildTraceResults(featuresJson)))
+                .then(featuresJson=> featuresJson.success === false ? reject(JSON.stringify(featuresJson)) : resolve(this.buildTraceResults(featuresJson)))
                 .catch(e=> reject("failed to execute trace. " + e));
  
-        });
-
+            });
         }
 
         buildTraceResults (featuresJson) {
@@ -370,33 +374,85 @@ class UtilityNetwork {
             return traceResults;
 
         }
+
+
+        subnetworkControllerTrace (traceLocationsParam, domainNetworkName, tierName, subnetworkName, traceConfiguration)  {
+ 
+            
+            if (traceConfiguration === undefined)
+            {  
+  
+             let tier = this.getTier(domainNetworkName, tierName);
+             let subnetworkDef = tier.updateSubnetworkTraceConfiguration;
+             subnetworkDef.subnetworkName = subnetworkName;
+             //disable consistency
+             subnetworkDef.validateConsistency = false;
+             traceConfiguration = subnetworkDef;
+             //if no trace configuration passed to override use the tier subnetwork definition
+           }
+
+            return this.Trace(traceLocationsParam, "subnetworkController", traceConfiguration);
+            
+        }
+
+        upstreamTrace (traceLocationsParam, domainNetworkName, tierName, subnetworkName, traceConfiguration) {
+
+            
+            if (traceConfiguration === undefined)
+            {  
+  
+             let tier = this.getTier(domainNetworkName, tierName);
+             let subnetworkDef = tier.updateSubnetworkTraceConfiguration;
+             subnetworkDef.subnetworkName = subnetworkName;
+             //disable consistency
+             subnetworkDef.validateConsistency = false;
+             traceConfiguration = subnetworkDef;
+             //if no trace configuration passed to override use the tier subnetwork definition
+           }
+              
+
+            return this.Trace(traceLocationsParam, "upstream", traceConfiguration);
+        }
+
+
+        downstreamTrace (traceLocationsParam, domainNetworkName, tierName, subnetworkName, traceConfiguration) {
+
+            
+            
+            if (traceConfiguration === undefined)
+            {  
+  
+             let tier = this.getTier(domainNetworkName, tierName);
+             let subnetworkDef = tier.updateSubnetworkTraceConfiguration;
+             subnetworkDef.subnetworkName = subnetworkName;
+             //disable consistency
+             subnetworkDef.validateConsistency = false;
+             traceConfiguration = subnetworkDef;
+             //if no trace configuration passed to override use the tier subnetwork definition
+           }
+
+                       
+            return this.Trace(traceLocationsParam, "downstream", traceConfiguration);
+        }
+
         //run subnetwork Trace
-        subnetworkTrace(domainNetworkName, tierName, subnetworkName)
+        subnetworkTrace(traceLocationsParam, domainNetworkName, tierName, subnetworkName, traceConfiguration)
         {   
 
-            return new Promise((resolve, reject) => {
-                let tier = this.getTier(domainNetworkName, tierName);
-                let subnetworkDef = tier.updateSubnetworkTraceConfiguration;
-                subnetworkDef.subnetworkName = subnetworkName;
-                //disable consistency
-                subnetworkDef.validateConsistency = false;
-                 
-                //build the rest end point for the trace
-               let ar = this.featureServiceUrl.split("/");
-               ar[ar.length-1]="UtilityNetworkServer";
-               let traceUrl = ar.join("/") + "/trace"
-                 let traceJson = {
-                    f: "json",
-                    token: this.token,
-                    traceType : "subnetwork",
-                    traceLocations: JSON.stringify([]),
-                    traceConfiguration: JSON.stringify(subnetworkDef)
-                }
-                let un = this;
-                makeRequest({method:'POST', params: traceJson, url: traceUrl })
-                .then(featuresJson=> resolve(this.buildTraceResults(featuresJson)))
-                .catch(e=> reject("failed to execute trace. " + e));
-            }) //end prmise
+            if (traceConfiguration === undefined)
+            {  
+  
+             let tier = this.getTier(domainNetworkName, tierName);
+             let subnetworkDef = tier.updateSubnetworkTraceConfiguration;
+             subnetworkDef.subnetworkName = subnetworkName;
+             //disable consistency
+             subnetworkDef.validateConsistency = false;
+             traceConfiguration = subnetworkDef;
+             //if no trace configuration passed to override use the tier subnetwork definition
+           }
+
+            return this.Trace(traceLocationsParam, "subnetwork", traceConfiguration);
+             
         }
 
 
