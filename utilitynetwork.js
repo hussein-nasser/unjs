@@ -296,7 +296,7 @@ class UtilityNetwork {
             //line starting point [{"traceLocationType":"startingPoint","globalId":"{00B313AC-FBC4-4FF4-9D7A-6BF40F4D4CAD}","percentAlong":0.84695770913918678}]
             traceLocationsParam.forEach(s=> {
                 //if layerid doesn't exists get it from the sourceid..
-                if (s.layerId === undefined) s.layerId = this.getLayerIdfromSourceId(s.sourceId);
+                if (s.layerId === undefined) s.layerId = this.getLayerIdfromSourceId(s.networkSourceId);
 
                 if (this.isLayerEdge(s.layerId) === true)
                     traceLocations.push({traceLocationType: s.traceLocationType, globalId:s.globalId , percentAlong: 0.5 } ) //add the starting point to themiddle of the line temporary
@@ -326,7 +326,7 @@ class UtilityNetwork {
         }
 
         //generic trace function
-        Trace (traceLocationsParam, traceType, traceConfiguration) {
+        Trace (traceLocationsParam, traceType, traceConfiguration, forceFail=true) {
             
             let traceLocations = this.buildTraceLocations (traceLocationsParam);
             return new Promise((resolve, reject) => {
@@ -346,34 +346,12 @@ class UtilityNetwork {
                 }
                 let un = this;
                 makeRequest({method:'POST', params: traceJson, url: traceUrl })
-                .then(featuresJson=> featuresJson.success === false ? reject(JSON.stringify(featuresJson)) : resolve(this.buildTraceResults(featuresJson)))
+                .then(featuresJson=> featuresJson.success === false && forceFail === true ? reject(JSON.stringify(featuresJson)) : resolve( featuresJson))
                 .catch(e=> reject("failed to execute trace. " + e));
  
             });
         }
 
-        buildTraceResults (featuresJson) {
-            //build the trace results so we group them by layerid
-            let traceResults = {};
-            traceResults.layers = [];
-
-            for (let f of featuresJson.traceResults.elements)
-            {
-                let layerObj = un.getLayerIdfromSourceId(f.networkSourceId);
-                if (layerObj === undefined) continue;
-
-                let layerId = layerObj.layerId;
-
-                if (traceResults.layers[layerId] == undefined) traceResults.layers[layerId] = {};
-                if (traceResults.layers[layerId].objectIds == undefined) traceResults.layers[layerId].objectIds = [];
-                if (traceResults.layers[layerId].type  == undefined)traceResults.layers[layerId].type =  layerObj.type;
-                
-                traceResults.layers[layerId].objectIds.push(f.objectId);
-            }
-
-            return traceResults;
-
-        }
 
 
         subnetworkControllerTrace (traceLocationsParam, domainNetworkName, tierName, subnetworkName, traceConfiguration)  {
@@ -391,7 +369,7 @@ class UtilityNetwork {
              //if no trace configuration passed to override use the tier subnetwork definition
            }
 
-            return this.Trace(traceLocationsParam, "subnetworkController", traceConfiguration);
+            return this.Trace(traceLocationsParam, "subnetworkController", traceConfiguration,false);
             
         }
 
