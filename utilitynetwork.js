@@ -205,14 +205,14 @@ class UtilityNetwork {
         getLayer(utilityNetworkUsageType) {
 
             let domainNetworks = this.dataElement.domainNetworks;
-            
+            let layers = []
             for (let i = 0; i < domainNetworks.length; i ++)
             {
                 let domainNetwork = domainNetworks[i];
               
                 for (let j = 0; j < domainNetwork.junctionSources.length; j ++)
                     if (domainNetwork.junctionSources[j].utilityNetworkFeatureClassUsageType === utilityNetworkUsageType)
-                        return domainNetwork.junctionSources[j].layerId;
+                        layers.push(domainNetwork.junctionSources[j].layerId);
             }
 
             for (let i = 0; i < domainNetworks.length; i ++)
@@ -221,22 +221,24 @@ class UtilityNetwork {
               
                 for (let j = 0; j < domainNetwork.edgeSources.length; j ++)
                     if (domainNetwork.edgeSources[j].utilityNetworkFeatureClassUsageType === utilityNetworkUsageType)
-                        return domainNetwork.edgeSources[j].layerId;
+                        layers.push(domainNetwork.edgeSources[j].layerId)
             }
+
+            return layers;
         }
         //return the first device layer
-        getDeviceLayer() {
+        getDeviceLayers() {
             
           return this.getLayer("esriUNFCUTDevice");
 
         }
         //return the first junction layer
-        getJunctionLayer() {
+        getJunctionLayers() {
 
             return this.getLayer("esriUNFCUTJunction");
         }
         //return the first Line layer
-        getLineLayer() {
+        getLineLayers() {
             return this.getLayer("esriUNFCUTLine");
         }
 
@@ -289,6 +291,7 @@ class UtilityNetwork {
         }
 
         //receives an array of starting locations and transforms it for the rest params.. 
+        //an array of [{"traceLocationType":"startingPoint", assetGroupCode: 5, assetTypeCode:5, layerId: 5, "globalId":"{00B313AC-FBC4-4FF4-9D7A-6BF40F4D4CAD}"}]
         buildTraceLocations (traceLocationsParam) {
 
             let traceLocations = [];
@@ -319,6 +322,30 @@ class UtilityNetwork {
             return traceLocations;
         }
         
+        //if it is an error we return true assuming we couldn't trace if no elements exists for this feature.. or any other..
+        isInIsland (traceLocationsParam) {
+            return new Promise( (resolve, reject) => {
+
+                //this trace configuration stops when it finds a single controller.
+                let traceConfiguration = {"includeContainers":false,"includeContent":false,"includeStructures":false,"includeBarriers":true,"validateConsistency":false,"domainNetworkName":"","tierName":"","targetTierName":"","subnetworkName":"","diagramTemplateName":"","shortestPathNetworkAttributeName":"","filterBitsetNetworkAttributeName":"","traversabilityScope":"junctions","conditionBarriers":[{"name":"Is subnetwork controller","type":"networkAttribute","operator":"equal","value":1,"combineUsingOr":false,"isSpecificValue":true}],"functionBarriers":[{"functionType":"add","networkAttributeName":"Is subnetwork controller","operator":"equal","value":1,"useLocalValues":false}],"arcadeExpressionBarrier":"","filterBarriers":[{"name":"Is subnetwork controller","type":"networkAttribute","operator":"equal","value":1,"combineUsingOr":false,"isSpecificValue":true}],"filterFunctionBarriers":[],"filterScope":"junctions","functions":[],"nearestNeighbor":{"count":-1,"costNetworkAttributeName":"","nearestCategories":[],"nearestAssets":[]},"outputFilters":[],"outputConditions":[{"name":"Is subnetwork controller","type":"networkAttribute","operator":"equal","value":1,"combineUsingOr":false,"isSpecificValue":true},{"name":"Category","type":"category","operator":"equal","value":"Subnetwork Controller","combineUsingOr":false,"isSpecificValue":true}],"propagators":[]}
+                this.Trace(traceLocationsParam, "connected", traceConfiguration)
+                .then (results => {
+                    if (results.traceResults.success === false) 
+                    {
+                        console.log ("Error tracing " + JSON.stringify(traceLocationsParam));
+                        reject(true);
+                    }
+                    else
+                        resolve(results.traceResults.elements.length === 0)
+                })
+                .catch (er => {
+                    console.log ("Error tracing " + JSON.stringify(traceLocationsParam));
+                    reject(true);});
+
+            })
+           
+        }
+
         //run connected Trace
         connectedTrace(traceLocationsParam, traceConfiguration)
         {                      

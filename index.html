@@ -66,6 +66,9 @@
                                 <td colspan = 2 align = left>  <button id = 'btnTraceIsolation'>Isolation Trace (Water only)</button> <label>Eliminate extra devices</label> <input type = 'checkbox' id = 'chkEliminate' checked> </td> 
                             </tr>
                             <tr>
+                                <td colspan = 2 align = left> <button id = 'btnFindIslands'>Find Islands Trace</button></td>                                
+                            </tr>
+                            <tr>
                                 <td colspan = 2 align = left><table id ='traceLocations'></table></td>                                
                             </tr>
                             <tr>
@@ -244,13 +247,73 @@
 
 
 
-    
+//generic island trace find all features that are not connected to any controller
+
+async function IslandTrace () {
+
+    let islands = 0;
+    let total = 0;
+    let startTime = new Date();
+    //for each layer that is device/line/junction in each domain network, query and find disconnected features. 
+    let layers = [];
+    let deviceLayers = un.getDeviceLayers();
+    let junctionLayers = un.getJunctionLayers();
+    let lineLayers = un.getLineLayers()
+    layers = layers.concat( deviceLayers, junctionLayers, lineLayers);
+
+    for (let i = 0; i < layers.length; i ++)
+    {
+         let dLayer = layers[i];
+         updateStatus("Querying device layer for features with unknown subnetwork name ...");
+         let queryResults = await un.query(dLayer, "SUBNETWORKNAME = 'Unknown'" );
+         updateStatus(queryResults.features.length + " features found with unknown subnetwork name.");
+         total = total + queryResults.features.length
+         //loop through each and add a starting point and check if the feature is in island.
+         for (let f = 0; f < queryResults.features.length; f++)
+         {  
+            let feature = queryResults.features[f];
+             //[{"traceLocationType":"startingPoint", layerId: 5, "globalId":"{00B313AC-FBC4-4FF4-9D7A-6BF40F4D4CAD}"}]
+            let startingPoints = [];
+            let startPoint = {};
+            startPoint.traceLocationType = "startingPoint";
+            startPoint.layerId = dLayer;
+            startPoint.globalId = getVal(feature.attributes, "globalid");
+            startPoint.assetGroupCode =  getVal(feature.attributes, "assetgroup");
+            startPoint.assetTypeCode =  getVal(feature.attributes, "assettype");
+            startingPoints.push(startPoint);
+            try {
+            feature.isInIsland = await un.isInIsland(startingPoints)
+            }
+            catch(ex) {
+                feature.isInIsland=true; //in case of errors tracing if the element doesn't exists (new feature created)
+            }
+
+            if (feature.isInIsland === true ) islands ++;
+            console.log (startPoint.globalId + " is " + feature.isInIsland);
+            updateStatus("Processing feature " + (f + 1) + " of " + queryResults.features.length + " [" + Math.round(f*100/queryResults.features.length,1) + "%]" )
+         }
+         
+         let endTime = new Date();
+        let timeInSeconds = (endTime.getTime() - startTime.getTime())/1000
+          updateStatus("Process completed in . " + timeInSeconds + " seconds. " + islands + " features out of " + total + " found in islands without controllers.");
+         
+    }
+}
+
  //only for water
  async function IsolationTrace() {
 
     //run upstream trace, stop when you find protective device valves
-    //trace configuration for barrier protective  {"includeContainers":true,"includeContent":false,"includeStructures":true,"includeBarriers":true,"validateConsistency":true,"domainNetworkName":"Water","tierName":"Distribution System","targetTierName":"","subnetworkName":"","diagramTemplateName":"","shortestPathNetworkAttributeName":"","filterBitsetNetworkAttributeName":"","traversabilityScope":"junctionsAndEdges","conditionBarriers":[{"name":"Device Status","type":"networkAttribute","operator":"equal","value":0,"combineUsingOr":false,"isSpecificValue":true}],"functionBarriers":[],"arcadeExpressionBarrier":"","filterBarriers":[{"name":"Category","type":"category","operator":"equal","value":"Disconnecting","combineUsingOr":true,"isSpecificValue":true},{"name":"Category","type":"category","operator":"equal","value":"Protective","combineUsingOr":false,"isSpecificValue":true}],"filterFunctionBarriers":[],"filterScope":"junctionsAndEdges","functions":[],"nearestNeighbor":{"count":-1,"costNetworkAttributeName":"","nearestCategories":[],"nearestAssets":[]},"outputFilters":[],"outputConditions":[{"name":"Category","type":"category","operator":"equal","value":"Disconnecting","combineUsingOr":true,"isSpecificValue":true},{"name":"Category","type":"category","operator":"equal","value":"Protective","combineUsingOr":false,"isSpecificValue":true}],"propagators":[]}
-    let traceConfiguration = {"includeContainers":true,"includeContent":false,"includeStructures":true,"includeBarriers":true,"validateConsistency":false,"domainNetworkName":"Water","tierName":"System","targetTierName":"","subnetworkName":"","diagramTemplateName":"","shortestPathNetworkAttributeName":"","filterBitsetNetworkAttributeName":"","traversabilityScope":"junctionsAndEdges","conditionBarriers":[{"name":"Device Status","type":"networkAttribute","operator":"equal","value":0,"combineUsingOr":true,"isSpecificValue":true},{"name":"Life Cycle Status","type":"networkAttribute","operator":"notEqual","value":3,"combineUsingOr":false,"isSpecificValue":true}],"functionBarriers":[],"arcadeExpressionBarrier":"","filterBarriers":[{"name":"Category","type":"category","operator":"equal","value":"Disconnecting","combineUsingOr":true,"isSpecificValue":true},{"name":"Category","type":"category","operator":"equal","value":"Protective","combineUsingOr":true,"isSpecificValue":true},{"name":"Category","type":"category","operator":"equal","value":"Isolating","combineUsingOr":false,"isSpecificValue":true}],"filterFunctionBarriers":[],"filterScope":"junctionsAndEdges","functions":[],"nearestNeighbor":{"count":-1,"costNetworkAttributeName":"","nearestCategories":[],"nearestAssets":[]},"outputFilters":[],"outputConditions":[{"name":"Category","type":"category","operator":"equal","value":"Disconnecting","combineUsingOr":true,"isSpecificValue":true},{"name":"Category","type":"category","operator":"equal","value":"Protective","combineUsingOr":true,"isSpecificValue":true},{"name":"Category","type":"category","operator":"equal","value":"Isolating","combineUsingOr":false,"isSpecificValue":true}],"propagators":[]}
+    //trace configuration for barrier protective
+    let napervilleWaterUpstreamConfiguration = {"includeContainers":true,"includeContent":false,"includeStructures":true,"includeBarriers":true,"validateConsistency":false,"domainNetworkName":"Water","tierName":"System","targetTierName":"","subnetworkName":"","diagramTemplateName":"","shortestPathNetworkAttributeName":"","filterBitsetNetworkAttributeName":"","traversabilityScope":"junctionsAndEdges","conditionBarriers":[{"name":"Device Status","type":"networkAttribute","operator":"equal","value":0,"combineUsingOr":true,"isSpecificValue":true},{"name":"Life Cycle Status","type":"networkAttribute","operator":"notEqual","value":3,"combineUsingOr":false,"isSpecificValue":true}],"functionBarriers":[],"arcadeExpressionBarrier":"","filterBarriers":[{"name":"Category","type":"category","operator":"equal","value":"Disconnecting","combineUsingOr":true,"isSpecificValue":true},{"name":"Category","type":"category","operator":"equal","value":"Protective","combineUsingOr":true,"isSpecificValue":true},{"name":"Category","type":"category","operator":"equal","value":"Isolating","combineUsingOr":false,"isSpecificValue":true}],"filterFunctionBarriers":[],"filterScope":"junctionsAndEdges","functions":[],"nearestNeighbor":{"count":-1,"costNetworkAttributeName":"","nearestCategories":[],"nearestAssets":[]},"outputFilters":[],"outputConditions":[{"name":"Category","type":"category","operator":"equal","value":"Disconnecting","combineUsingOr":true,"isSpecificValue":true},{"name":"Category","type":"category","operator":"equal","value":"Protective","combineUsingOr":true,"isSpecificValue":true},{"name":"Category","type":"category","operator":"equal","value":"Isolating","combineUsingOr":false,"isSpecificValue":true}],"propagators":[]};
+    let napervilleWaterCustomerConfiguration = {"includeContainers":false,"includeContent":false,"includeStructures":false,"includeBarriers":true,"validateConsistency":true,"domainNetworkName":"","tierName":"","targetTierName":"","subnetworkName":"","diagramTemplateName":"","shortestPathNetworkAttributeName":"","filterBitsetNetworkAttributeName":"","traversabilityScope":"junctionsAndEdges","conditionBarriers":[],"functionBarriers":[],"arcadeExpressionBarrier":"","filterBarriers":[],"filterFunctionBarriers":[],"filterScope":"junctionsAndEdges","functions":[],"nearestNeighbor":{"count":-1,"costNetworkAttributeName":"","nearestCategories":[],"nearestAssets":[]},"outputFilters":[{"networkSourceId":9,"assetGroupCode":7,"assetTypeCode":81},{"networkSourceId":9,"assetGroupCode":7,"assetTypeCode":82},{"networkSourceId":9,"assetGroupCode":7,"assetTypeCode":83},{"networkSourceId":9,"assetGroupCode":7,"assetTypeCode":85},{"networkSourceId":9,"assetGroupCode":7,"assetTypeCode":0},{"networkSourceId":9,"assetGroupCode":7,"assetTypeCode":84}],"outputConditions":[],"propagators":[]}
+
+    let fonddulacUpstreamConfiguration = {"includeContainers":true,"includeContent":false,"includeStructures":true,"includeBarriers":true,"validateConsistency":false,"domainNetworkName":"Gas","tierName":"Distribution Pressure","targetTierName":"","subnetworkName":"","diagramTemplateName":"","shortestPathNetworkAttributeName":"","filterBitsetNetworkAttributeName":"","traversabilityScope":"junctionsAndEdges","conditionBarriers":[{"name":"Device Status","type":"networkAttribute","operator":"equal","value":0,"combineUsingOr":false,"isSpecificValue":true}],"functionBarriers":[],"arcadeExpressionBarrier":"","filterBarriers":[{"name":"Pipe Is Pinchable","type":"networkAttribute","operator":"equal","value":1,"combineUsingOr":true,"isSpecificValue":true},{"name":"Valve Accessibility","type":"networkAttribute","operator":"equal","value":1,"combineUsingOr":true,"isSpecificValue":true},{"name":"Valve Operable","type":"networkAttribute","operator":"equal","value":1,"combineUsingOr":true,"isSpecificValue":true},{"name":"Category","type":"category","operator":"equal","value":"Isolating","combineUsingOr":false,"isSpecificValue":true}],"filterFunctionBarriers":[],"filterScope":"junctionsAndEdges","functions":[],"nearestNeighbor":{"count":-1,"costNetworkAttributeName":"","nearestCategories":[],"nearestAssets":[]},"outputFilters":[],"outputConditions":[{"name":"Category","type":"category","operator":"equal","value":"Isolating","combineUsingOr":true,"isSpecificValue":true},{"name":"Valve Accessibility","type":"networkAttribute","operator":"equal","value":1,"combineUsingOr":true,"isSpecificValue":true},{"name":"Valve Operable","type":"networkAttribute","operator":"equal","value":1,"combineUsingOr":true,"isSpecificValue":true},{"name":"Pipe Is Pinchable","type":"networkAttribute","operator":"equal","value":1,"combineUsingOr":false,"isSpecificValue":true}],"propagators":[]}
+    let fonddulacCustomerConfiguration = {"includeContainers":false,"includeContent":false,"includeStructures":false,"includeBarriers":true,"validateConsistency":false,"domainNetworkName":"","tierName":"","targetTierName":"","subnetworkName":"","diagramTemplateName":"","shortestPathNetworkAttributeName":"","filterBitsetNetworkAttributeName":"","traversabilityScope":"junctionsAndEdges","conditionBarriers":[],"functionBarriers":[],"arcadeExpressionBarrier":"","filterBarriers":[],"filterFunctionBarriers":[],"filterScope":"junctionsAndEdges","functions":[],"nearestNeighbor":{"count":-1,"costNetworkAttributeName":"","nearestCategories":[],"nearestAssets":[]},"outputFilters":[{"networkSourceId":6,"assetGroupCode":5,"assetTypeCode":1},{"networkSourceId":6,"assetGroupCode":5,"assetTypeCode":2},{"networkSourceId":6,"assetGroupCode":5,"assetTypeCode":0}],"outputConditions":[],"propagators":[]}
+    
+    let traceConfiguration = napervilleWaterUpstreamConfiguration;
+    let customerConfiguration = napervilleWaterCustomerConfiguration; //only return customers config
+
     if (cmbDomainNetworks.selectedIndex != -1 && cmbTiers.selectedIndex != -1)
     {
         try {
@@ -275,7 +338,7 @@
         realValveBarrier.traceResults.elements.forEach(v => v.enabled === true ? realIsolatingDevices ++: 0);
         drawTraceResults(un, realValveBarrier, TRACING_BARRIER_COLOR)
         updateStatus("Finding affected customers...");
-        let customersResults = await findAffectedCustomers(traceLocationsParam, realValveBarrier)
+        let customersResults = await findAffectedCustomers(traceLocationsParam, realValveBarrier, customerConfiguration)
         let end = new Date();
         let totalTime = (end.getTime() - start.getTime())/1000
         updateStatus("Done in .. " +  totalTime + " seconds " + " found " + realValveBarrier.traceResults.elements.length + " isolation devices where only " + realIsolatingDevices + " are valid, and total affected customers of " + customersResults.traceResults.elements.length );
@@ -293,8 +356,8 @@
 //drawTraceResults
 } 
 
-    async function findAffectedCustomers (startParam, barriersObj){
-         let configFilterServiceCustomers = {"includeContainers":false,"includeContent":false,"includeStructures":false,"includeBarriers":true,"validateConsistency":true,"domainNetworkName":"","tierName":"","targetTierName":"","subnetworkName":"","diagramTemplateName":"","shortestPathNetworkAttributeName":"","filterBitsetNetworkAttributeName":"","traversabilityScope":"junctionsAndEdges","conditionBarriers":[],"functionBarriers":[],"arcadeExpressionBarrier":"","filterBarriers":[],"filterFunctionBarriers":[],"filterScope":"junctionsAndEdges","functions":[],"nearestNeighbor":{"count":-1,"costNetworkAttributeName":"","nearestCategories":[],"nearestAssets":[]},"outputFilters":[{"networkSourceId":9,"assetGroupCode":7,"assetTypeCode":81},{"networkSourceId":9,"assetGroupCode":7,"assetTypeCode":82},{"networkSourceId":9,"assetGroupCode":7,"assetTypeCode":83},{"networkSourceId":9,"assetGroupCode":7,"assetTypeCode":85},{"networkSourceId":9,"assetGroupCode":7,"assetTypeCode":0},{"networkSourceId":9,"assetGroupCode":7,"assetTypeCode":84}],"outputConditions":[],"propagators":[]}
+    async function findAffectedCustomers (startParam, barriersObj, configFilterServiceCustomers){
+        
          let barriers = barriersObj.traceResults;
          let startingLocations = startParam;
          //build up starting locations
@@ -306,6 +369,7 @@
             if (e.enabled === undefined || e.enabled === true) startingLocations.push(e);
         }
 
+      
        let results = await un.connectedTrace(startingLocations,configFilterServiceCustomers)
        drawTraceResults(un, results,CUSTOMER_COLOR,false);
        return new Promise((resolve, reject) => {
@@ -401,14 +465,26 @@
            updateStatus("No starting points were found.");
            return;
        }
-
-       un.connectedTrace(traceLocationsParam).then (traceResults =>  drawTraceResults(un, traceResults)).catch(er=>updateStatus(er))
-
+    /*
+        un.isInIsland(traceLocationsParam)
+        .then (Isisland => alert(Isisland))
+        .catch (er => alert("error"))
+ */
+    
+       un.connectedTrace(traceLocationsParam)
+      .then (traceResults =>  drawTraceResults(un, traceResults))
+      .then (a => updateStatus("Done"))
+      .catch(er=>updateStatus(er))
+    
 
     });
 
 
     
+    btnFindIslands.addEventListener("click", e => {
+        updateStatus("Running Island Trace...");
+        IslandTrace();
+           });
     btnTraceIsolation.addEventListener("click", e => {
         updateStatus("Running Isolation Tracing...");
         IsolationTrace();
@@ -522,7 +598,8 @@
 
         mapView.graphics = []
         let subnetworkName = cmbSubnetworks.options[cmbSubnetworks.selectedIndex].textContent;
-        un.query(un.subnetLineLayerId, "SUBNETWORKNAME = '" + subnetworkName + "'").then (rowsJson => {
+        un.query(un.subnetLineLayerId, "SUBNETWORKNAME = '" + subnetworkName + "'")
+        .then (rowsJson => {
         let featureLayer = mapView.byId(un.subnetLineLayerId);
        
         /* Highlight bug doesn't work with feature service
@@ -535,11 +612,15 @@
 
         })
         */
-
-         let polylineGraphic =  getGraphic("line", rowsJson.features[0].geometry);
+       //if no subnetline is found exit.
+        if (rowsJson.features.length === 0) 
+            updateStatus("Subnetline feature not found. Please make sure to update all subnetworks to generate subnetline.");
+        else 
+          {let polylineGraphic =  getGraphic("line", rowsJson.features[0].geometry);
         
          mapView.graphics.add(polylineGraphic);
          mapView.then(e=>mapView.goTo(polylineGraphic.geometry));
+        }
         });
         }
 
