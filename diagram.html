@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Network Diagram Sample</title>
+  <link rel="stylesheet" href="https://js.arcgis.com/4.6/esri/css/main.css">
+  <script src="https://js.arcgis.com/4.6/"></script>
+  <script src = 'utilitynetwork.js'></script>
+  <script src = 'portal.js'></script>
+  <script src = 'networkdiagram.js'></script>
+<body>
+  <h4>Utility Network - Network Diagram Sample</h4>
+  <table>
+    <tr>
+        <td valign = top>
+            <table id = 'tblMain'>
+              <tr>
+                  <td><label>Enterprise Url: </label></td><td><input type="text" id = "portalUrl" value = "https://batz.esri.com/portal" style = 'width:300px'></td>
+              </tr>
+              <tr>
+                  <td><label>Username: </label></td><td> <input type="text" id = "username" value = "jacq0000" style = 'width:150px'></td>
+              </tr>
+             <tr>
+                  <td><label>Password: </label></td><td><input type="password" id = "password" value = "jacq_0000" style = 'width:150px'></td>
+             </tr>
+             <tr>
+                  <td colspan =2 align =right><button id = 'btnConnect'>Connect</button></td>
+             </tr>
+             <tr>
+                  <td><label>ServiceUrl</label></td><td><select id = 'cmbServerUrl'></select></td>
+             </tr>
+             <tr>
+                  <td colspan =2 align =right><button id = 'btnDisplayUtilityNetwork'>Display Utility Network</button></td>
+             </tr>
+             <tr>
+                  <td><label>Tag</label></td>
+                  <td><input type=text id ='tagText'></td>
+             </tr>
+             <tr>
+                  <td colspan =2 align =right><button id = 'btnGetNetwokDiagramInfos'>Network Diagram</button></td>
+             </tr>
+             <tr>
+                  <td><label>Diagrams</label></td><td><select id = 'cmbDiagrams'></select></td>
+             </tr>
+             <tr>
+                  <td><label>Diagram Templates</label></td><td><select id = 'cmbTemplates'></select></td>
+             </tr>
+             <tr>
+                  <td colspan =2 align =right><button id = 'btnDisplayDiagram'>Display Diagram</button>
+                    <button id = 'btnGenerateFromExtent'>Generate From Extent</button>
+                  </td>
+             </tr>
+             <tr>
+                  <td><label>Layouts: </label></td>
+                  <td>
+                    <select id='cmbLayouts' name="Layout">
+                     <option value="1">Force Directed</option>
+                     <option value="2">Radial Tree</option>
+                     <option value="3">Grid</option>
+                     <option value="4">Compression</option>
+                     <option value="5">Geo Positions</option>
+                     <option value="6">Smart Tree</option>
+                     <option value="7">Main Line Tree</option>
+                   </select>
+                  </td >
+
+             </tr>
+             <tr>
+               <td colspan =2 align =right><button id = 'btnApplyLayoutOnDg'>Apply Layout</button></td>
+             </tr>
+             <tr>
+               <td colspan =2 align =right><button id = 'btnHideShowUn'>Hide/Show Utility Network</button></td>
+             </tr>
+             <tr>
+               <td colspan =2 align =right><button id = 'btnExtendConnectivity'>Extend Connectivity</button>
+                 <button id = 'btnExtendAttachment'>Extend Attachment</button>
+                 <button id = 'btnExtendContainment'>Extend Containment</button>
+
+               </td>
+            </tr>
+            <tr>
+              <td colspan =2 align =right><button id = 'btnExtendAll'>Extend All</button>
+            </tr>
+            <tr>
+                <td colspan = 2><label id = 'lblStatus'></label></td>
+            </tr>
+          </table>
+        </td>
+        <td>
+           <table>
+             <tr>
+               <td>
+                 <div id="viewDiv2" style='width:700px;height:800px'></div>
+                 <td colspan = 2><div id="viewDiv" style='width:700px;height:800px'></div>
+               </td>
+             <tr>
+          </table>
+        </td>
+    </tr>
+ </table>
+
+  <script>
+
+    require([
+      "esri/Map",
+      "esri/views/MapView",
+      "esri/Graphic",
+      "esri/layers/FeatureLayer",
+      "esri/layers/GraphicsLayer",
+      "esri/layers/MapImageLayer",
+      "esri/identity/IdentityManager",
+      "esri/geometry/Point",
+      "esri/geometry/Extent",
+      "dojo/domReady!"
+    ], function(
+      Map, MapView, Graphic, FeatureLayer, GraphicsLayer, MapImageLayer, IdentityManager, Point, Extent
+    ) {
+      //update status function
+      let updateStatus = text => document.getElementById("lblStatus").textContent = text;
+
+      var resultsLayer = new GraphicsLayer();
+      //map view for ND
+      var map = new Map("mapView");
+      var view = new MapView({
+        container: "viewDiv",
+        map: map
+      });
+
+      //map view for UN
+      var map2 = new Map("mapView");
+      var view2 = new MapView({
+        container: "viewDiv2",
+        map: map2
+      });
+
+      let nd;
+      let un;
+      let serviceUrl;
+      let servicesUrl;
+      let diagramName;
+
+      let featuresLayers = [];
+      document.getElementById("btnHideShowUn").addEventListener("click", function() {
+        let unView = document.getElementById("viewDiv2");
+        let dgView = document.getElementById("viewDiv");
+        if (unView.style.visibility=='hidden')
+        {
+          unView.style.visibility='visible';
+          unView.style.height = '800px';
+          unView.style.width = '700px';
+        }
+        else
+        {
+          unView.style.visibility='hidden';
+          unView.style.height = '0px';
+          unView.style.width = '0px';
+        }
+      });
+
+      document.getElementById("btnConnect").addEventListener("click", function() {
+          let portalUrl = document.getElementById("portalUrl").value;
+          let username = document.getElementById("username").value;
+          let password = document.getElementById("password").value;
+          //clear the list of services.
+          while (cmbServerUrl.firstChild) cmbServerUrl.removeChild(cmbServerUrl.firstChild);
+          portal = new Portal(portalUrl,username, password);
+          portal.connect()
+          .then(token => portal.items())
+          .then(myItems =>  populateItems(myItems))
+          .catch(rejected => updateStatus ("Unable to connect to portal. " + rejected));
+
+          portal = new Portal(portalUrl,username, password);
+          portal.connect().then(token=> {
+            portal.items().then(myItems=> {
+                myItems.forEach(item => {
+                   if (item === myItems[0])
+                   {
+                     serviceUrl = item.url;
+                     let arrayService2 = serviceUrl.split("/")
+                     arrayService2.length = arrayService2.length - 2;
+                     servicesUrl = arrayService2.join("/");
+                   }
+                   let itemUrl = document.createElement("option");
+                   serviceUrl = item.url;
+                   let arrayService = serviceUrl.split("/")
+                   itemUrl.textContent = arrayService[arrayService.length - 2];
+                   if (arrayService[arrayService.length - 1] == "FeatureServer")
+                   {
+                     cmbServerUrl.appendChild(itemUrl);
+                   }
+               });
+             });
+           })
+      });
+
+      document.getElementById("btnGetNetwokDiagramInfos").addEventListener("click", function() {
+          let tagText = document.getElementById("tagText").value;
+          let serviceName = document.getElementById("cmbServerUrl").value;
+          nd = new Diagram(portal.token, servicesUrl + "/" + serviceName);
+          while (cmbDiagrams.hasChildNodes()) {
+            cmbDiagrams.removeChild(cmbDiagrams.firstChild);
+          }
+
+          //display Diagram filtering by tag
+          nd.getDiagrams().then(
+            result => result.diagramNames.forEach(name => {
+              let dg = nd.getDiagram(name).then(result => {
+                if (result.tag.includes(tagText) > 0)
+                {
+                  //add to cmbDiagrams
+                  let dgName = document.createElement("option");
+                  dgName.textContent  = name;
+                  cmbDiagrams.appendChild(dgName);
+                }
+              });
+            })
+          );
+
+          nd.getDiagramTemplates().then(
+            result => result.templates.forEach(name => {
+              let templateName = document.createElement("option");
+              templateName.textContent  = name;
+              cmbTemplates.appendChild(templateName);
+            })
+          );
+      });
+
+      document.getElementById("btnDisplayDiagram").addEventListener("click", function() {
+          diagramName  = document.getElementById("cmbDiagrams").value;
+          let diagramMap = nd.getDiagramMapUrl(diagramName);
+          displayDiagram (diagramName, diagramMap);
+      });
+
+      function displayDiagram (diagramName, diagramMap) {
+        map.removeAll();
+        IdentityManager.registerToken({server: diagramMap, token: portal.token});
+        let layer = new MapImageLayer({
+          url: diagramMap
+        });
+        nd.getDiagram(diagramName).then(function(result){
+          map.add(layer);
+          dgExtent = result.diagramExtent;
+          view.spatialReference = dgExtent.spatialReference;
+          let point = new Point((dgExtent.xmin + dgExtent.xmax) / 2, (dgExtent.ymin + dgExtent.ymax) / 2);
+          point.spatialReference = dgExtent.spatialReference;
+          view.center = point.clone();
+          view.extent = dgExtent;
+          let extent2 = view.extent.clone();
+          view.extent = extent2.expand(2);
+        });
+      }
+
+      document.getElementById("btnDisplayUtilityNetwork").addEventListener("click", function() {
+          let ServerUrlUN  = document.getElementById("cmbServerUrl").value;
+          let servicesUrlUN = servicesUrl;
+          nd = new Diagram(portal.token, servicesUrlUN + "/" + ServerUrlUN);
+          let portalUrl = portal.url;
+          let arrayService = portalUrl.split("/")
+          arrayService.length = arrayService.length - 1;
+          servicesUrlUN = arrayService.join("/");
+          servicesUrlUN = servicesUrlUN + "/server/rest/services/" + ServerUrlUN + "/FeatureServer";
+
+          var postJson = {
+              token: portal.token,
+              f: "json"
+          };
+          makeRequest({method: 'POST', url: servicesUrlUN, params: postJson}).then(
+
+              result => {
+                var layers = result["layers"];
+                for (var i=0;  i < (layers.length); i++)
+                {
+                  var item = layers[i];
+                  if (item.type === "Feature Layer" && item.parentLayerId === -1)
+                  {
+                    var servicesUrlItem = servicesUrlUN + "/" + item.id;
+                    IdentityManager.registerToken({server: servicesUrlUN, token: portal.token});
+                    var featureLayer = new FeatureLayer({
+                     url: servicesUrlItem
+                    });
+                    if (item.geometryType == "esriGeometryPolygon")
+                    {
+                      featuresLayers.unshift(featureLayer);
+                    }
+                    else
+                    {
+                      featuresLayers.push(featureLayer);
+                    }
+                  }
+                }
+                reorder(map2, featuresLayers);
+              });
+
+      });
+
+      function reorder (map, fLayers) {
+        for (var i=0;  i < (fLayers.length); i++)
+        {
+          map.add(fLayers[i]);
+        }
+      }
+
+      document.getElementById("btnGenerateFromExtent").addEventListener("click", function() {
+        let templateName  = document.getElementById("cmbTemplates").value;
+        function myPromise(featureLayer, extent){
+          var queryParams = featureLayer.createQuery();
+          queryParams.geometry = extent;
+          queryParams.outFields = ["GLOBALID"];
+          return featureLayer.queryFeatures(queryParams);
+        }
+        var promises = [];
+        for (var i=0;  i < (featuresLayers.length); i++){
+          var promise = myPromise(featuresLayers[i], view2.extent);
+          promises.push(promise);
+        }
+        function addToArray(value, ar) {
+          if (value.attributes.hasOwnProperty('GLOBALID'))
+          {
+            strGlobalID = strGlobalID + "\"" +  value.attributes.GLOBALID + "\",";
+          }
+          if (value.attributes.hasOwnProperty('globalid'))
+          {
+            strGlobalID = strGlobalID + "\"" +  value.attributes.globalid + "\",";
+          }
+        }
+        strGlobalID = "[";
+        Promise.all(promises).then(function(myArray){
+           for (var i=0;  i < (myArray.length); i++){
+             var arr = myArray[i].features;
+             arr.forEach(addToArray);
+           }
+           strGlobalID = strGlobalID.substring(0, strGlobalID.length - 1);
+           strGlobalID = strGlobalID + "]";
+           nd.cloneTemporaryDiagram(strGlobalID, templateName).then(function(res){
+             diagramName = res.diagramInfo.name;
+             let myDiagramMap = nd.getDiagramMapUrl(diagramName);
+             displayDiagram(diagramName, myDiagramMap);
+           });
+        });
+      });
+
+      document.getElementById("btnExtendConnectivity").addEventListener("click", function() {
+        let diagramMap = nd.getDiagramMapUrl(diagramName);
+        nd.extend(0, diagramName).then(function(result){
+          displayDiagram(diagramName, diagramMap);
+        });
+      });
+      document.getElementById("btnExtendAttachment").addEventListener("click", function() {
+        let diagramMap = nd.getDiagramMapUrl(diagramName);
+        nd.extend(2, diagramName).then(function(result){
+          displayDiagram(diagramName, diagramMap);
+        });
+      });
+      document.getElementById("btnExtendContainment").addEventListener("click", function() {
+        let diagramMap = nd.getDiagramMapUrl(diagramName);
+        nd.extend(3, diagramName).then(function(result){
+          displayDiagram(diagramName, diagramMap);
+        });
+      });
+      document.getElementById("btnExtendAll").addEventListener("click", function() {
+        let diagramMap = nd.getDiagramMapUrl(diagramName);
+        nd.extend(0, diagramName).then(function(result){
+          nd.extend(2, diagramName).then(function(result){
+            nd.extend(3, diagramName).then(function(result){
+              displayDiagram(diagramName, diagramMap);
+            });
+          });
+        });
+      });
+
+      document.getElementById("btnApplyLayoutOnDg").addEventListener("click", function() {
+        let layoutName  = document.getElementById("cmbLayouts").value;
+        let algoName = "ForceDirectedDiagramLayout";
+        switch (layoutName) {
+          case '1':
+            algoName = "ForceDirectedDiagramLayout";
+            break;
+          case '2':
+            algoName = "RadialTreeDiagramLayout";
+            break;
+          case '3':
+            algoName = "GridDiagramLayout";
+            break;
+          case '4':
+            algoName = "CompressionDiagramLayout";
+            break;
+          case '5':
+            algoName = "GeoPositionsDiagramLayout";
+            break;
+          case '6':
+            algoName = "SmartTreeDiagramLayout";
+            break;
+          case '7':
+            algoName = "MainLineTreeDiagramLayout";
+            break;
+          default:
+            algoName = "ForceDirectedDiagramLayout";
+        }
+
+        //Check if Propertty set for algorithm exist in the template
+        let templateName  = document.getElementById("cmbTemplates").value;
+        nd.getDiagramTemplateInfo(templateName).then(function(resTemplateInfo){
+          let layoutParams = resTemplateInfo.layoutParams[algoName].propertySetItems;
+          let jsonPropertySet = {"type" : "PropertySet", "PropertySetItems" : layoutParams}
+          jsonPropertySet2 = JSON.stringify(jsonPropertySet);
+          //TODO Check param existence, else no params
+          nd.applyLayoutAlgorithm(algoName, diagramName, [], [], [], jsonPropertySet2).then(function(res){
+            let diagramMap = nd.getDiagramMapUrl(diagramName);
+            displayDiagram(diagramName, diagramMap);
+          });
+        });
+      });
+
+      function populateItems (myItems) {
+          myItems.filter(a => a.type === "Map Service").forEach( a => {
+              let listItem = document.createElement("option");
+              listItem.textContent = a.title;
+              listItem.url = a.url;
+              listItem.id = a.id;
+              cmbServerUrl.appendChild(listItem);
+              } )
+      }
+  });
+  </script>
+</body>
+</html>
