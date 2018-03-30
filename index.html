@@ -239,6 +239,7 @@
 
 
     btnClearTraceLocations.addEventListener("click",  e => {
+        activeTraceLocation = undefined;
         while(traceLocations.firstChild) traceLocations.removeChild(traceLocations.firstChild);
         mapView.graphics = [];
         gl.graphics = [];
@@ -548,6 +549,7 @@ async function IslandTrace () {
         let traceLocationsParam = getTraceLocationsParam();
         un.subnetworkTrace(traceLocationsParam, domainNetworkName, tierName , subnetworkName)
         .then(traceResults =>  drawTraceResults(un, traceResults))
+        .then(a=> updateStatus("Done"))
         .catch(err=> updateStatus(err));
         }
 
