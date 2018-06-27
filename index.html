@@ -1,405 +1,971 @@
 <!--
 //Author : Hussein Nasser
 //Date   : Jan-23-2018
+//Email  : hnasser@esri.com
 //Twitter: @hnasr
 -->
-<!DOCTYPE html>
-<html lang="en">
+<html>
+
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <title>Utility Network - Web Trace Sample - Javascript</title>
-    <script src = 'https://js.arcgis.com/4.6'></script>
-    <script src = 'utilitynetwork.js'></script>
-    <script src = 'portal.js'></script>
-	<link rel = "stylesheet" href = "https://js.arcgis.com/4.6/esri/css/main.css">
+    <title>Utility Network - Javascript</title>
+    <!--
+<script>
+  var dojoConfig = {
+    has: {
+      "esri-featurelayer-webgl": 1
+    }
+  };
+</script>
+-->
+    <!-- <script src = 'https://jsdev.arcgis.com/4.7/'></script> -->
+    <script src='https://js.arcgis.com/4.6/'></script>
+    <script src='utilitynetwork.js'></script>
+    <script src='portal.js'></script>
+    <link rel="stylesheet" href="//js.arcgis.com/4.6/esri/themes/dark/main.css">
+    <link rel="stylesheet" href="css/main.css">
 </head>
- 
- 
-<body>
-    <h4>Utility Network - Web Trace Sample</h4>
-    <table>
-        <tr>
-            <td valign = top>
-                <table id = 'tblMain'>
-                        <tr>
-                            <td><label>Enterprise Url: </label></td><td><input type="text" id = "portalUrl" value = "https://enterprisehost/portal" style = 'width:300px'></td>
-                        </tr>
-                        <tr>
-                            <td><label>Username: </label></td><td> <input type="text" id = "username" value = "" style = 'width:150px'></td>
-                        </tr>
-                        <tr>
-                            <td><label>Password: </label></td><td><input type="password" id = "password" value = "" style = 'width:150px'></td>
-                        </tr>
-                        <tr>
-                            <td colspan =2 align =right><button id = 'btnConnect'>Connect</button></td>
-                        </tr>
-                        <tr>
-                            <td><label>Items</label></td><td><select id = 'cmbItems'></select></td>
-                        </tr>
-                        <tr>
-                                <td><label>Domain Networks</label></td><td><select id = 'cmbDomainNetworks'></select></td>
-                        </tr>  
-                        <tr>
-                                <td><label>Tiers</label></td><td><select id = 'cmbTiers'></select></td>
-                        </tr>
-                        <tr>
-                                <td><label>Subnetworks</label></td><td><select id = 'cmbSubnetworks'></select></td>
-                        </tr> 
-                        <tr>
-                            <td colspan = 2 align = right><button id = 'btnClear'>Clear</button><button id = 'btnTrace'>Trace</button> </td>
-                        </tr>
-                      
-                        <tr>
-                            <td colspan = 2><label id = 'lblStatus'></label></td>
-                        </tr>
-                    </table>
-            </td>
-            <td>
-                       <table>
-                            <tr>
-                                <td><div id = 'mapview' style='width:900px;height:700px'></div></td>
-                            </tr>
-                        </table>
-            </td>
-            
-        </tr>
-    </table>
-   
 
-  
-
-<script> 
+<body onload="javascript:initApp()">
+    <div id="panelView"></div>
+    <div id="panelTop" class="shadow">
+        <div id="title">
+            WATER TRACE TOOL
+        </div>
+        <div id="options">
+            <div id="optTools">TOOLS</div>
+            <div id="optSettings">SETTINGS</div>
+        </div>
+        <div id="content">
+            <div id="settings">
+              <div class="inner">
+                <div class="rowLabel">ENTERPRISE URL:</div>
+                <div class="row30">
+                  <input type="text" id="portalUrl" value="https://enterpriseurl" style='width:300px'>
+                </div>
+                <div class="rowLabel">USERNAME:</div>
+                <div class="row30">
+                  <input type="text" id="username" value="portaluser">
+                </div>
+                <div class="rowLabel">PASSWORD:</div>
+                <div class="row30">
+                  <input type="password" id="password" value="portalpassword">
+                </div>
+                <div class="rowBtn">
+                  <button id='btnConnect'>Connect</button>
+                </div>
+                <div class="rowLabel">SERVICE:</div>
+                <div class="row30">
+                  <select id='cmbItems'></select>
+                </div>
+                <div class="rowLabel">DOMAIN NETWORKS:</div>
+                <div class="row30">
+                  <select id='cmbDomainNetworks'></select>
+                </div>
+                <div class="rowLabel">TIERS:</div>
+                <div class="row30">
+                  <select id='cmbTiers'></select>
+                </div>
+              </div>
+            </div>
+            <div id="tools">
+              <div class="inner">
+                <div class="rowLabel">SUBNETWORKS:</div>
+                <div class="row30">
+                  <select id='cmbSubnetworks'></select>
+                </div>
+                <div class="rowBtn">
+                  <button id='btnClearTraceLocations'>Clear</button>
+                </div>
+                <div class="rowBtn">
+                  <button id='btnStartingPoint'>Set Starting Points</button>
+                </div>
+                <div class="rowBtn">
+                  <button id='btnBarriers'>Set Barriers</button>
+                </div>
+                <div class="rowBtn">
+                  <button id='btnTraceConnected'>Connected Trace</button>
+                </div>
+                <div class="rowBtn">
+                   <button id='btnTrace'>Subnetwork Trace</button>
+                </div>
+                <div class="rowBtn">
+                  <button id='btnTraceIsolation'>Isolation Trace (Water only)</button>
+                </div>
+                <div class="rowChk">
+                  <input type='checkbox' id='chkEliminate' style="width: 20px" checked>
+                  <label for='chkEliminate'>ELIMINATE EXTRA DEVICES</label>
+                </div>
+                <div class="rowBtn">
+                  <button id='btnFindIslands'>Find Islands Trace</button>
+                </div>
+                <div class="rowChk"></div>
+                <table id='traceLocations'></table>
+              </div>
+            </div>
+        </div>
+        <div id="status">
+            <label id='lblStatus'></label>
+        </div>
+    </div>
+    <script>
+    let highlight = null;
     let portal;
     let mapView;
     let GraphicClass;
-    let un; 
-    const SELECTION_COLOR = [136, 220, 232, 0.7];
-    const SELECTION_SIZE = 4;
-    const OID_PAGE = 100; //how many objectids to send per request for the drawing.. less means more requests , more means less requests .. max depends on the backend database..
-    let traceStart;
-    const DEFAULT_SPATIAL_REFERENCE =   {
-                "wkid": 102100,
-                "latestWkid": 3857
-                }
+    let handles = [];
+    let un;
+    let gl;
+    let locationId = 0;
+    const QUERY_PAGE = 100; //number of oids to query to get the geometry..
+    const SELECTION_COLOR = [27, 227, 251, 0.4];
+    const SELECTION_SIZE = 8;
+    const TRACING_STARTLOCATION_BUFFER = 3;
+    const CUSTOMER_COLOR = [250, 240, 29, 0.7];
+    const DISABLED_COLOR = [128, 128, 128, 0.7];
+    const TRACING_STARTPOINT_COLOR = [20, 158, 29, 0.7];
+    const TRACING_BARRIER_COLOR = [211, 23, 51, 0.7];
+    const TRACELOCATION_START = "startingPoint";
+    const TRACELOCATION_BARRIER = "barrier";
 
-    let CHROME = (navigator.userAgent.toString().toLowerCase().indexOf("chrome") != -1);
-     
-    if (!CHROME)
-        alert("Utility network Web Trace sample only supported on chrome .. Keep watching the repo for updates")
+    const DEFAULT_SPATIAL_REFERENCE = {
+        "wkid": 102100,
+        "latestWkid": 3857
+    }
 
-    //update status function
-    let updateStatus = text => document.getElementById("lblStatus").textContent = text;
-  
-   //Pull up all required drop downlists and buttons
+
+
+    let updateStatus = text => {
+      document.getElementById("lblStatus").textContent = text;
+    }
+
+    let activeTraceLocation;
+
+    let mapClick = event => {
+        event.stopPropagation();
+
+        let color = activeTraceLocation === TRACELOCATION_START ? TRACING_STARTPOINT_COLOR : TRACING_BARRIER_COLOR;
+
+        mapView.hitTest({ x: event.x, y: event.y }).then(hitResults => {
+
+            let supportedClasses = ["esriUNFCUTDevice", "esriUNFCUTJunction", "esriUNFCUTLine"] //, "esriUNFCUTLine" ]
+            if (hitResults.results.length) {
+
+
+                hitResults.results.forEach(g => {
+
+                    let img = document.createElement("img");
+
+                    if (activeTraceLocation === TRACELOCATION_START)
+                        img.src = "images/startPoint.png"
+                    else
+                        img.src = "images/barrier.png";
+
+                    let rowTraceLocation = document.createElement("tr");
+                    let columnImg = document.createElement("td");
+                    rowTraceLocation.appendChild(columnImg);
+                    columnImg.appendChild(img);
+                    let columnElement = document.createElement("td");
+                    // let columntraceLocationType = document.createElement("td");
+                    let columnTerminal = document.createElement("td");
+                    columnTerminal.className = "col120";
+                    //rowTraceLocation.appendChild(img)
+                    rowTraceLocation.appendChild(columnElement);
+                    //   rowTraceLocation.appendChild(columntraceLocationType);
+                    rowTraceLocation.appendChild(columnTerminal);
+                    let columnBtn = document.createElement("td");
+                    rowTraceLocation.appendChild(columnBtn);
+                    let deleteTraceLocation = document.createElement("button");
+                    deleteTraceLocation.textContent = "X";
+                    deleteTraceLocation.className = "btnX";
+                    deleteTraceLocation.addEventListener("click", e => {
+                        traceLocations.removeChild(rowTraceLocation);
+                        //try to remove the graphic
+
+                        for (let i = 0; i < gl.graphics.items.length; i++) {
+                            let g = gl.graphics.items[i];
+                            if (g.name === rowTraceLocation.globalId) {
+                                gl.remove(g);
+                                break;
+                            }
+
+                        }
+
+
+                    });
+                    columnBtn.appendChild(deleteTraceLocation);
+
+                    let at = un.getAssetType(g.graphic.layer.layerId, getVal(g.graphic.attributes, "assetgroup"), getVal(g.graphic.attributes, "assettype"));
+                    //if it is not a device or a junction or a line exit..
+                    if (!supportedClasses.find(c => c == at.utilityNetworkFeatureClassUsageType)) return;
+                    locationId++;
+                    rowTraceLocation.globalId = getVal(g.graphic.attributes, "globalid");
+                    rowTraceLocation.locationId = locationId;
+                    rowTraceLocation.isTerminalConfigurationSupported = at.isTerminalConfigurationSupported;
+                    rowTraceLocation.layerId = g.graphic.layer.layerId;
+                    rowTraceLocation.assetGroupCode = getVal(g.graphic.attributes, "assetgroup");
+                    rowTraceLocation.assetTypeCode = getVal(g.graphic.attributes, "assettype");
+
+                    columnElement.textContent = " (" + at.assetGroupName + "/" + at.assetTypeName + ") "
+                    // columntraceLocationType.textContent = activeTraceLocation;
+                    //if termianls supported show it 
+                    if (at.isTerminalConfigurationSupported == true) {
+                        let terminalList = document.createElement("select");
+                        terminalList.className = "mini";
+                        terminalList.id = "cmbTerminalConfig" + locationId;
+                        let terminalConfiguration = un.getTerminalConfiguration(at.terminalConfigurationId);
+                        terminalConfiguration.terminals.forEach(t => {
+                            let terminalItem = document.createElement("option");
+                            terminalItem.textContent = t.terminalName;
+                            terminalItem.value = t.terminalId;
+                            terminalList.appendChild(terminalItem);
+                        })
+                        columnTerminal.appendChild(terminalList);
+                    }
+
+
+                    rowTraceLocation.traceLocationType = activeTraceLocation;
+                    traceLocations.appendChild(rowTraceLocation);
+
+                    //create graphic on the map
+                    require(["esri/geometry/geometryEngineAsync"], function(geometryEngineAsync) {
+                        (async function() {
+                            let bufferedGeo = await geometryEngineAsync.buffer(g.graphic.geometry, TRACING_STARTLOCATION_BUFFER);
+                            gl.graphics.add(getGraphic("polygon", bufferedGeo, color, rowTraceLocation.globalId));
+                        })();
+                    });
+                })
+
+
+
+            }
+
+        });
+
+
+
+    };
+
+    //Start Execution//
     let cmbItems = document.getElementById("cmbItems");
     let cmbDomainNetworks = document.getElementById("cmbDomainNetworks");
     let cmbTiers = document.getElementById("cmbTiers");
     let cmbSubnetworks = document.getElementById("cmbSubnetworks");
     let btnTrace = document.getElementById("btnTrace");
-    let btnClear = document.getElementById("btnClear");
-  
-     
-    //connect to portal
-    document.getElementById("btnConnect").addEventListener("click", function() {     
-        let portalUrl = document.getElementById("portalUrl").value;
-        let username = document.getElementById("username").value;
-        let password = document.getElementById("password").value;
-        //clear the list of services.
-        while (cmbItems.firstChild) cmbItems.removeChild(cmbItems.firstChild);
-        portal = new Portal(portalUrl,username, password);    
-        portal.connect()
-        .then(token => portal.items())
-        .then(myItems =>  populateItems(myItems))
-        .catch(rejected => updateStatus ("Unable to connect to portal. " + rejected));
+    let btnStartingPoint = document.getElementById("btnStartingPoint");
+    let btnBarriers = document.getElementById("btnBarriers");
+    let btnClearTraceLocations = document.getElementById("btnClearTraceLocations");
+    let btnTraceConnected = document.getElementById("btnTraceConnected");
+    let traceLocations = document.getElementById("traceLocations");
+
+    let handleStartPoints;
+    let handleBarriers;
+
+
+    btnClearTraceLocations.addEventListener("click", e => {
+        activeTraceLocation = undefined;
+        while (traceLocations.firstChild) traceLocations.removeChild(traceLocations.firstChild);
+        mapView.graphics = [];
+        gl.graphics = [];
+        updateStatus("");
     })
 
-    //when a user clicks on clear         
-    btnClear.addEventListener("click",  e => mapView.graphics = [])
-     
-    //when a user selects a web map
-    cmbItems.addEventListener("change", async function (e) {
-         
+
+
+    //generic island trace find all features that are not connected to any controller
+
+    async function IslandTrace() {
+
+        let islands = 0;
+        let total = 0;
+        let startTime = new Date();
+        //for each layer that is device/line/junction in each domain network, query and find disconnected features. 
+        let layers = [];
+        let deviceLayers = un.getDeviceLayers();
+        let junctionLayers = un.getJunctionLayers();
+        let lineLayers = un.getLineLayers()
+        layers = layers.concat(deviceLayers, junctionLayers, lineLayers);
+
+        for (let i = 0; i < layers.length; i++) {
+            let dLayer = layers[i];
+            updateStatus("Querying device layer for features with unknown subnetwork name ...");
+            let queryResults = await un.query(dLayer, "SUBNETWORKNAME = 'Unknown'");
+            updateStatus(queryResults.features.length + " features found with unknown subnetwork name.");
+            total = total + queryResults.features.length
+            //loop through each and add a starting point and check if the feature is in island.
+            for (let f = 0; f < queryResults.features.length; f++) {
+                let feature = queryResults.features[f];
+                //[{"traceLocationType":"startingPoint", layerId: 5, "globalId":"{00B313AC-FBC4-4FF4-9D7A-6BF40F4D4CAD}"}]
+                let startingPoints = [];
+                let startPoint = {};
+                startPoint.traceLocationType = "startingPoint";
+                startPoint.layerId = dLayer;
+                startPoint.globalId = getVal(feature.attributes, "globalid");
+                startPoint.assetGroupCode = getVal(feature.attributes, "assetgroup");
+                startPoint.assetTypeCode = getVal(feature.attributes, "assettype");
+                startingPoints.push(startPoint);
+                try {
+                    feature.isInIsland = await un.isInIsland(startingPoints)
+                } catch (ex) {
+                    feature.isInIsland = true; //in case of errors tracing if the element doesn't exists (new feature created)
+                }
+
+                if (feature.isInIsland === true) islands++;
+                console.log(startPoint.globalId + " is " + feature.isInIsland);
+                updateStatus("Processing feature " + (f + 1) + " of " + queryResults.features.length + " [" + Math.round(f * 100 / queryResults.features.length, 1) + "%]")
+            }
+
+            let endTime = new Date();
+            let timeInSeconds = (endTime.getTime() - startTime.getTime()) / 1000
+            updateStatus("Process completed in . " + timeInSeconds + " seconds. " + islands + " features out of " + total + " found in islands without controllers.");
+
+        }
+    }
+
+    //only for water
+    async function IsolationTrace() {
+
+        //run upstream trace, stop when you find protective device valves
+        //trace configuration for barrier protective
+        let napervilleWaterUpstreamConfiguration = { "includeContainers": true, "includeContent": false, "includeStructures": true, "includeBarriers": true, "validateConsistency": false, "domainNetworkName": "Water", "tierName": "System", "targetTierName": "", "subnetworkName": "", "diagramTemplateName": "", "shortestPathNetworkAttributeName": "", "filterBitsetNetworkAttributeName": "", "traversabilityScope": "junctionsAndEdges", "conditionBarriers": [{ "name": "Device Status", "type": "networkAttribute", "operator": "equal", "value": 0, "combineUsingOr": true, "isSpecificValue": true }, { "name": "Life Cycle Status", "type": "networkAttribute", "operator": "notEqual", "value": 3, "combineUsingOr": false, "isSpecificValue": true }], "functionBarriers": [], "arcadeExpressionBarrier": "", "filterBarriers": [{ "name": "Category", "type": "category", "operator": "equal", "value": "Disconnecting", "combineUsingOr": true, "isSpecificValue": true }, { "name": "Category", "type": "category", "operator": "equal", "value": "Protective", "combineUsingOr": true, "isSpecificValue": true }, { "name": "Category", "type": "category", "operator": "equal", "value": "Isolating", "combineUsingOr": false, "isSpecificValue": true }], "filterFunctionBarriers": [], "filterScope": "junctionsAndEdges", "functions": [], "nearestNeighbor": { "count": -1, "costNetworkAttributeName": "", "nearestCategories": [], "nearestAssets": [] }, "outputFilters": [], "outputConditions": [{ "name": "Category", "type": "category", "operator": "equal", "value": "Disconnecting", "combineUsingOr": true, "isSpecificValue": true }, { "name": "Category", "type": "category", "operator": "equal", "value": "Protective", "combineUsingOr": true, "isSpecificValue": true }, { "name": "Category", "type": "category", "operator": "equal", "value": "Isolating", "combineUsingOr": false, "isSpecificValue": true }], "propagators": [] };
+        let napervilleWaterCustomerConfiguration = { "includeContainers": false, "includeContent": false, "includeStructures": false, "includeBarriers": true, "validateConsistency": true, "domainNetworkName": "", "tierName": "", "targetTierName": "", "subnetworkName": "", "diagramTemplateName": "", "shortestPathNetworkAttributeName": "", "filterBitsetNetworkAttributeName": "", "traversabilityScope": "junctionsAndEdges", "conditionBarriers": [], "functionBarriers": [], "arcadeExpressionBarrier": "", "filterBarriers": [], "filterFunctionBarriers": [], "filterScope": "junctionsAndEdges", "functions": [], "nearestNeighbor": { "count": -1, "costNetworkAttributeName": "", "nearestCategories": [], "nearestAssets": [] }, "outputFilters": [{ "networkSourceId": 9, "assetGroupCode": 7, "assetTypeCode": 81 }, { "networkSourceId": 9, "assetGroupCode": 7, "assetTypeCode": 82 }, { "networkSourceId": 9, "assetGroupCode": 7, "assetTypeCode": 83 }, { "networkSourceId": 9, "assetGroupCode": 7, "assetTypeCode": 85 }, { "networkSourceId": 9, "assetGroupCode": 7, "assetTypeCode": 0 }, { "networkSourceId": 9, "assetGroupCode": 7, "assetTypeCode": 84 }], "outputConditions": [], "propagators": [] }
+
+        let fonddulacUpstreamConfiguration = { "includeContainers": true, "includeContent": false, "includeStructures": true, "includeBarriers": true, "validateConsistency": false, "domainNetworkName": "Gas", "tierName": "Distribution Pressure", "targetTierName": "", "subnetworkName": "", "diagramTemplateName": "", "shortestPathNetworkAttributeName": "", "filterBitsetNetworkAttributeName": "", "traversabilityScope": "junctionsAndEdges", "conditionBarriers": [{ "name": "Device Status", "type": "networkAttribute", "operator": "equal", "value": 0, "combineUsingOr": false, "isSpecificValue": true }], "functionBarriers": [], "arcadeExpressionBarrier": "", "filterBarriers": [{ "name": "Pipe Is Pinchable", "type": "networkAttribute", "operator": "equal", "value": 1, "combineUsingOr": true, "isSpecificValue": true }, { "name": "Valve Accessibility", "type": "networkAttribute", "operator": "equal", "value": 1, "combineUsingOr": true, "isSpecificValue": true }, { "name": "Valve Operable", "type": "networkAttribute", "operator": "equal", "value": 1, "combineUsingOr": true, "isSpecificValue": true }, { "name": "Category", "type": "category", "operator": "equal", "value": "Isolating", "combineUsingOr": false, "isSpecificValue": true }], "filterFunctionBarriers": [], "filterScope": "junctionsAndEdges", "functions": [], "nearestNeighbor": { "count": -1, "costNetworkAttributeName": "", "nearestCategories": [], "nearestAssets": [] }, "outputFilters": [], "outputConditions": [{ "name": "Category", "type": "category", "operator": "equal", "value": "Isolating", "combineUsingOr": true, "isSpecificValue": true }, { "name": "Valve Accessibility", "type": "networkAttribute", "operator": "equal", "value": 1, "combineUsingOr": true, "isSpecificValue": true }, { "name": "Valve Operable", "type": "networkAttribute", "operator": "equal", "value": 1, "combineUsingOr": true, "isSpecificValue": true }, { "name": "Pipe Is Pinchable", "type": "networkAttribute", "operator": "equal", "value": 1, "combineUsingOr": false, "isSpecificValue": true }], "propagators": [] }
+        let fonddulacCustomerConfiguration = { "includeContainers": false, "includeContent": false, "includeStructures": false, "includeBarriers": true, "validateConsistency": false, "domainNetworkName": "", "tierName": "", "targetTierName": "", "subnetworkName": "", "diagramTemplateName": "", "shortestPathNetworkAttributeName": "", "filterBitsetNetworkAttributeName": "", "traversabilityScope": "junctionsAndEdges", "conditionBarriers": [], "functionBarriers": [], "arcadeExpressionBarrier": "", "filterBarriers": [], "filterFunctionBarriers": [], "filterScope": "junctionsAndEdges", "functions": [], "nearestNeighbor": { "count": -1, "costNetworkAttributeName": "", "nearestCategories": [], "nearestAssets": [] }, "outputFilters": [{ "networkSourceId": 6, "assetGroupCode": 5, "assetTypeCode": 1 }, { "networkSourceId": 6, "assetGroupCode": 5, "assetTypeCode": 2 }, { "networkSourceId": 6, "assetGroupCode": 5, "assetTypeCode": 0 }], "outputConditions": [], "propagators": [] }
+
+        let traceConfiguration = napervilleWaterUpstreamConfiguration;
+        let customerConfiguration = napervilleWaterCustomerConfiguration; //only return customers config
+
+        if (cmbDomainNetworks.selectedIndex != -1 && cmbTiers.selectedIndex != -1) {
+            try {
+
+                let domainNetworkName = cmbDomainNetworks.options[cmbDomainNetworks.selectedIndex].textContent;
+                let tierName = cmbTiers.options[cmbTiers.selectedIndex].textContent;
+                traceConfiguration.domainNetworkName = domainNetworkName;
+                traceConfiguration.tierName = tierName;
+                let totalIsolatingDevices = 0;
+                let realIsolatingDevices = 0;
+
+                let traceLocationsParam = getTraceLocationsParam();
+                let start = new Date();
+                updateStatus("Upstream trace...");
+                let valveBarriers = await un.upstreamTrace(traceLocationsParam, null, null, null, traceConfiguration)
+                valveBarriers.traceResults.elements.forEach(e => e.enabled = true);
+
+                updateStatus("Eliminating false barriers ...");
+                let realValveBarrier = valveBarriers;
+                let chkEliminate = document.getElementById("chkEliminate").checked;
+                if (chkEliminate) realValveBarrier = await eliminate(valveBarriers, domainNetworkName, tierName, traceConfiguration)
+                realValveBarrier.traceResults.elements.forEach(v => v.enabled === true ? realIsolatingDevices++ : 0);
+                drawTraceResults(un, realValveBarrier, TRACING_BARRIER_COLOR)
+                updateStatus("Finding affected customers...");
+                let customersResults = await findAffectedCustomers(traceLocationsParam, realValveBarrier, customerConfiguration)
+                let end = new Date();
+                let totalTime = (end.getTime() - start.getTime()) / 1000
+                updateStatus("Done in .. " + totalTime + " seconds " + " found " + realValveBarrier.traceResults.elements.length + " isolation devices where only " + realIsolatingDevices + " are valid, and total affected customers of " + customersResults.traceResults.elements.length);
+                //.catch(err=> updateStatus(err));
+
+            } catch (err) {
+                updateStatus(err);
+            }
+        } else
+            updateStatus("Please select domain and tier");
+
+
+        //drawTraceResults
+    }
+
+    async function findAffectedCustomers(startParam, barriersObj, configFilterServiceCustomers) {
+
+        let barriers = barriersObj.traceResults;
+        let startingLocations = startParam;
+        //build up starting locations
+        for (let j = 0; j < barriers.elements.length; j++) {
+            let e = barriers.elements[j];
+            e.traceLocationType = TRACELOCATION_BARRIER;
+            //only use barrier if it is valid.
+            if (e.enabled === undefined || e.enabled === true) startingLocations.push(e);
+        }
+
+
+        let results = await un.connectedTrace(startingLocations, configFilterServiceCustomers)
+        drawTraceResults(un, results, CUSTOMER_COLOR, false);
+        return new Promise((resolve, reject) => {
+            resolve(results);
+        })
+    }
+    //eliminate valuves that are not candidates 
+    async function eliminate(traceResultsObj, domainNetworkName, tierName, traceConfiguration) {
+
+        let traceResults = traceResultsObj.traceResults;
+        //   let newTraceResults = Object.assign({}, traceResults);
+        //for each returned barrier.. place a starting point and add the rest as barriers, run a controller trace. if nothing returned remove ... 
+        /* Trace result looks like
+        {"traceResults":
+            {"elements":
+                [
+                    {"networkSourceId":6,"globalId":"{D6A1EB87-C70F-463D-80D2-68B0CE8712AE}","objectId":6278,"terminalId":1,"assetGroupCode":2,"assetTypeCode":168}
+                ]
+            ,"diagramName":"<placeholder>","globalFunctionResults":[],"kFeaturesForKNNFound":false,"startingPointsIgnored":false,"warnings":[]}
+            ,"success":true}
+
+        */
+        for (let j = 0; j < traceResults.elements.length; j++) {
+
+            let e = traceResults.elements[j];
+            let startingLocations = [];
+            e.traceLocationType = TRACELOCATION_START;
+            startingLocations.push(e);
+            //for each element but as starting point and all the rest as barriers... 
+            for (let i = 0; i < traceResults.elements.length; i++) {
+                let e1 = traceResults.elements[i];
+                //don't add the same element as starting point
+                if (e1.globalId === e.globalId) continue;
+
+                e1.traceLocationType = TRACELOCATION_BARRIER;
+                startingLocations.push(e1);
+            }
+            //after that we are now ready... lets trace.
+
+            //console.log(JSON.stringify(startingLocations));
+            let controllerTraceResult = await un.subnetworkControllerTrace(startingLocations, domainNetworkName, tierName, null);
+            //if no controllers found remove that barrier... its not a candidate., when no controllers found an error is returned extendedCode=-2147208935
+            if (controllerTraceResult.success == false) {
+
+                traceResults.elements[j].enabled = false;
+            } else
+                traceResults.elements[j].enabled = true;
+
+
+        }
+
+
+        //console.log(JSON.stringify(traceResults));
+
+        return new Promise((resolve, reject) => {
+            resolve(traceResultsObj);
+        })
+    }
+    //read the form and build the trace locations 
+    function getTraceLocationsParam() {
+
+        let traceLocationsParam = [];
+        traceLocations.childNodes.forEach(li => {
+            let startLocation = {};
+            startLocation.globalId = li.globalId;
+            startLocation.layerId = li.layerId;
+            startLocation.assetGroupCode = li.assetGroupCode;
+            startLocation.assetTypeCode = li.assetTypeCode;
+            if (li.isTerminalConfigurationSupported == true) {
+                let cmbTerminalConfig = document.getElementById("cmbTerminalConfig" + li.locationId);
+                startLocation.terminalId = cmbTerminalConfig.options[cmbTerminalConfig.selectedIndex].value;
+            }
+            startLocation.traceLocationType = li.traceLocationType;
+            traceLocationsParam.push(startLocation)
+        });
+
+        return traceLocationsParam;
+
+    }
+
+    btnTraceConnected.addEventListener("click", e => {
+        updateStatus("Tracing...");
+        let traceLocationsParam = getTraceLocationsParam();
+        //only attempt to trace when there is at leats one starting point
+        if (!traceLocationsParam.length) {
+            updateStatus("No starting points were found.");
+            return;
+        }
+        /*
+        un.isInIsland(traceLocationsParam)
+        .then (Isisland => alert(Isisland))
+        .catch (er => alert("error"))
+ */
+
+        un.connectedTrace(traceLocationsParam)
+            .then(traceResults => drawTraceResults(un, traceResults))
+            .then(a => updateStatus("Done"))
+            .catch(er => updateStatus(er))
+
+
+    });
+
+
+
+    btnFindIslands.addEventListener("click", e => {
+        updateStatus("Running Island Trace...");
+        IslandTrace();
+    });
+    btnTraceIsolation.addEventListener("click", e => {
+        updateStatus("Running Isolation Tracing...");
+        IsolationTrace();
+    });
+
+
+
+
+
+    btnBarriers.addEventListener("click", e => {
+
+        if (activeTraceLocation == undefined) mapView.on("click", mapClick);
+
+        activeTraceLocation = TRACELOCATION_BARRIER;
+
+
+    })
+
+    btnStartingPoint.addEventListener("click", e => {
+
+        if (activeTraceLocation == undefined) mapView.on("click", mapClick);
+        activeTraceLocation = TRACELOCATION_START;
+
+
+    })
+
+    cmbItems.addEventListener("change", async function(e) {
+
         let itemId = e.target.options[e.target.selectedIndex].id;
         updateStatus("Loading item...");
         let itemData = await portal.loadItem(itemId);
-        updateStatus("Item Loaded");
+        updateStatus("");
         // get the first operational layer so we know the feature service
         let serviceUrl = itemData.operationalLayers[0].url;
         let arrayService = serviceUrl.split("/")
-        arrayService.length--;       
+        arrayService.length--;
         serviceUrl = arrayService.join("/");
-        un = new UtilityNetwork(portal.token, serviceUrl );
-        let serviceJson = un.featureServiceJson;    
-        
-        //load utility network in memory
+        un = new UtilityNetwork(portal.token, serviceUrl);
+        let serviceJson = un.featureServiceJson;
+        //query utility network data element
+        //alert(JSON.parse(response).controllerDatasetLayers.utilityNetworkLayerId)
+        //load service, map and UN in memory
         await un.load();
-        
-        //load the utility network and the map
-        loadUtilityNetwork(un, itemId, "mapview");
+        loadUtilityNetwork(un, itemId, "panelView");
 
-        //Only activate the trace event when a map is loaded.
-        btnTrace.onclick = function(){
+        //started populating domain networks
+
+        //when someone changes the domain network list all tiers
+
+        btnTrace.onclick = function() {
             let domainNetworkName = cmbDomainNetworks.options[cmbDomainNetworks.selectedIndex].textContent;
             let tierName = cmbTiers.options[cmbTiers.selectedIndex].textContent;
-            let subnetworkName = cmbSubnetworks.options[cmbSubnetworks.selectedIndex].textContent;
-            traceStart = new Date().getTime();
-            
+            let subnetworkName = "";
+            //if subnetwork is not selected
+            if (cmbSubnetworks.options[cmbSubnetworks.selectedIndex] != undefined)
+                subnetworkName = cmbSubnetworks.options[cmbSubnetworks.selectedIndex].textContent;
+
+            let traceStart = new Date().getTime();
             updateStatus("Tracing...");
-            //run subnetwork trace get the result and draw it
-            un.subnetworkTrace(domainNetworkName, tierName , subnetworkName)
-            .then(traceResults =>  drawTraceResults(un, traceResults))
-            .catch(err=> updateStatus(err));
+            let traceLocationsParam = getTraceLocationsParam();
+            un.subnetworkTrace(traceLocationsParam, domainNetworkName, tierName, subnetworkName)
+                .then(traceResults => drawTraceResults(un, traceResults))
+                .then(a => updateStatus("Done"))
+                .catch(err => updateStatus(err));
+        }
+
+
+        cmbDomainNetworks.onchange = function(e) {
+            // e.target.selectedIndex
+            //clear tiers, subnetworks
+            while (cmbTiers.firstChild) cmbTiers.removeChild(cmbTiers.firstChild);
+            while (cmbSubnetworks.firstChild) cmbSubnetworks.removeChild(cmbSubnetworks.firstChild);
+            let selectedDomainNetwork = e.target.options[e.target.selectedIndex].textContent;
+
+            let domainNetwork = un.getDomainNetwork(selectedDomainNetwork);
+
+            domainNetwork.tiers.forEach(tier => {
+                let tn = document.createElement("option");
+                tn.textContent = tier.name;
+                cmbTiers.appendChild(tn);
+            })
+            //cmbTiers.selectedIndex = -1;
+            if (domainNetwork.tiers.length > 0) {
+                let event = new Event('change');
+                cmbTiers.dispatchEvent(event);
+            } else {
+                cmbTiers.selectedIndex = -1;
             }
-
-        //when a user selects a domain network
-        cmbDomainNetworks.onchange = e => {      
-        //clear tiers, subnetworks
-        while(cmbTiers.firstChild)cmbTiers.removeChild(cmbTiers.firstChild);
-        while(cmbSubnetworks.firstChild)cmbSubnetworks.removeChild(cmbSubnetworks.firstChild); 
-        let selectedDomainNetwork = e.target.options[e.target.selectedIndex].textContent;
-
-        let domainNetwork = un.getDomainNetwork(selectedDomainNetwork);
-
-        domainNetwork.tiers.forEach(tier => { 
-            let tn = document.createElement("option");
-            tn.textContent  = tier.name;
-            cmbTiers.appendChild(tn);
-        })
-        cmbTiers.selectedIndex=-1; 
 
         }
 
 
-        cmbTiers.onchange = e => {
-            while(cmbSubnetworks.firstChild)cmbSubnetworks.removeChild(cmbSubnetworks.firstChild);
+        cmbTiers.onchange = function(e) {
+
+            while (cmbSubnetworks.firstChild) cmbSubnetworks.removeChild(cmbSubnetworks.firstChild);
             let selectedDomainNetwork = cmbDomainNetworks.options[cmbDomainNetworks.selectedIndex].textContent;
             let selectedTier = cmbTiers.options[cmbTiers.selectedIndex].textContent;
 
-            updateStatus("Querying subnetworks ...")
-            un.getSubnetworks(selectedDomainNetwork,selectedTier)
-            .then(results=>{
-            updateStatus("Done")
-            results.features.forEach(feature=> {
-                let sn = document.createElement("option");
-                for (let propt in feature.attributes)
-                    if (propt.toUpperCase() === "SUBNETWORKNAME")
-                    sn.textContent  = feature.attributes[propt];
-                
-                cmbSubnetworks.appendChild(sn);
-            })
-            cmbSubnetworks.selectedIndex=-1;
+            un.getSubnetworks(selectedDomainNetwork, selectedTier).then(results => {
+
+
+                results.features.forEach(feature => {
+                    let sn = document.createElement("option");
+                    for (let propt in feature.attributes)
+                        if (propt.toUpperCase() === "SUBNETWORKNAME")
+                            sn.textContent = feature.attributes[propt];
+
+                    cmbSubnetworks.appendChild(sn);
+                })
+                cmbSubnetworks.selectedIndex = -1;
             })
         }
 
-        cmbSubnetworks.onchange = function (){
 
-        mapView.graphics = []
-        let subnetworkName = cmbSubnetworks.options[cmbSubnetworks.selectedIndex].textContent;
-        un.query(un.subnetLineLayerId, "SUBNETWORKNAME = '" + subnetworkName + "'")
-        .then (rowsJson => {
-            let featureLayer = mapView.byId(un.subnetLineLayerId);       
-            let polylineGraphic =  getGraphic("line", rowsJson.features[0].geometry);        
-            mapView.graphics.add(polylineGraphic);
-            mapView.then(e=>mapView.goTo(polylineGraphic.geometry));
-            })
-        .catch(err=>updateStatus("Failed to highlight subnetwork. Make sure you run update subnetworks to create the subnetlines.  "))
+
+        cmbSubnetworks.onchange = function() {
+
+            mapView.graphics = []
+            let subnetworkName = cmbSubnetworks.options[cmbSubnetworks.selectedIndex].textContent;
+            un.query(un.subnetLineLayerId, "SUBNETWORKNAME = '" + subnetworkName + "'")
+                .then(rowsJson => {
+                    let featureLayer = mapView.byId(un.subnetLineLayerId);
+
+                    /* Highlight bug doesn't work with feature service
+                    mapView.whenLayerView(featureLayer).then(lyrView => {
+                       if (highlight) {
+                            highlight.remove();
+                            highlight = null;
+                        }
+                        highlight = lyrView.highlight([rowsJson.features[0].attributes["OBJECTID"]])
+
+                    })
+                    */
+                    //if no subnetline is found exit.
+                    if (rowsJson.features.length === 0)
+                        updateStatus("Subnetline feature not found. Please make sure to update all subnetworks to generate subnetline.");
+                    else {
+                        let polylineGraphic = getGraphic("line", rowsJson.features[0].geometry);
+
+                        mapView.graphics.add(polylineGraphic);
+                        mapView.then(e => mapView.goTo(polylineGraphic.geometry));
+                    }
+                });
         }
 
-//populate domain networks, clear list first
-while(cmbDomainNetworks.firstChild)cmbDomainNetworks.removeChild(cmbDomainNetworks.firstChild);
-while(cmbTiers.firstChild)cmbTiers.removeChild(cmbTiers.firstChild);
-while(cmbSubnetworks.firstChild)cmbSubnetworks.removeChild(cmbSubnetworks.firstChild); 
-un.dataElement.domainNetworks.forEach(domainNetwork => { 
-        let dn = document.createElement("option");
-        dn.textContent  = domainNetwork.domainNetworkName;
-        cmbDomainNetworks.appendChild(dn);
-    })
-//select nothing
-cmbDomainNetworks.selectedIndex= -1;
- 
+        //populate domain networks, clear list first
+        while (cmbDomainNetworks.firstChild) cmbDomainNetworks.removeChild(cmbDomainNetworks.firstChild);
+        while (cmbTiers.firstChild) cmbTiers.removeChild(cmbTiers.firstChild);
+        while (cmbSubnetworks.firstChild) cmbSubnetworks.removeChild(cmbSubnetworks.firstChild);
+        un.dataElement.domainNetworks.forEach(domainNetwork => {
+            let dn = document.createElement("option");
+            dn.textContent = domainNetwork.domainNetworkName;
+            cmbDomainNetworks.appendChild(dn);
+        })
+        //cmbDomainNetworks.selectedIndex = -1;
+        // ST - Hard code to WaterDistribution for demo
+        if (un.dataElement.domainNetworks.length > 1) {
+            let event = new Event('change');
+            cmbDomainNetworks.selectedIndex = 1;
+            cmbDomainNetworks.dispatchEvent(event);
+        } else {
+            cmbDomainNetworks.selectedIndex = -1;
+        }
+
+
+
     });
- 
-    //break array into manageable pieces 
-    let createGroupedArray =  (arr, chunkSize) => {
-        let groups = [], i;
-        for (let i = 0; i < arr.length; i += chunkSize) {
+
+
+
+
+    document.getElementById("btnConnect").addEventListener("click", function() {
+        connect();
+    })
+
+
+    var createGroupedArray = function(arr, chunkSize) {
+        var groups = [],
+            i;
+        for (i = 0; i < arr.length; i += chunkSize) {
             groups.push(arr.slice(i, i + chunkSize));
         }
         return groups;
     }
- 
-    
-    //get a graphic from geometry helper function
-    function getGraphic(type, geometry, color=SELECTION_COLOR)
-    {   
+
+    function getGraphic(type, geometry, color = SELECTION_COLOR, name) {
 
 
         let symbol;
         let geometryObject;
 
-        switch (type)
-        {
-        case "point" :
-              
-            symbol = {
-            type: "simple-marker", // autocasts as new SimpleMarkerSymbol()
-            color: color,
-            size:SELECTION_SIZE,
-            outline: { // autocasts as new SimpleLineSymbol()
-            color: color,
-            width: SELECTION_SIZE
-            }
-          }
+        switch (type) {
+            case "point":
 
-            geometryObject = {
-            type: "point",
-            x: geometry.x,
-            y: geometry.y,
-            spatialReference :  DEFAULT_SPATIAL_REFERENCE
+                symbol = {
+                    type: "simple-marker", // autocasts as new SimpleMarkerSymbol()
+                    color: color,
+                    size: SELECTION_SIZE,
+                    outline: { // autocasts as new SimpleLineSymbol()
+                        color: color,
+                        width: 0
+                    }
+                }
+
+                geometryObject = {
+                    type: "point",
+                    x: geometry.x,
+                    y: geometry.y,
+                    spatialReference: DEFAULT_SPATIAL_REFERENCE
                 }
 
                 break;
-        case "line":
-      
-            symbol= {
-                        type: "simple-line", // autocasts as SimpleLineSymbol()
-                        color: color,
-                        width: SELECTION_SIZE
-                    };
-              
-            geometryObject = {
-            type: "polyline",
-            paths: geometry.paths,
-            spatialReference:  DEFAULT_SPATIAL_REFERENCE
+            case "line":
+
+                symbol = {
+                    type: "simple-line", // autocasts as SimpleLineSymbol()
+                    color: color,
+                    width: SELECTION_SIZE
+
+                };
+
+                geometryObject = {
+                    type: "polyline",
+                    paths: geometry.paths,
+                    spatialReference: DEFAULT_SPATIAL_REFERENCE
                 }
-        break;
-        case "polygon":
+                break;
+            case "polygon":
 
-      symbol = {
-        type: "simple-fill", // autocasts as new SimpleFillSymbol()
-        color: color,
-        outline: { // autocasts as new SimpleLineSymbol()
-          color: [255, 255, 255],
-          width: SELECTION_SIZE
+                symbol = {
+                    type: "simple-fill", // autocasts as new SimpleFillSymbol()
+                    color: color,
+                    outline: { // autocasts as new SimpleLineSymbol()
+                        color: color, //[255, 255, 255],
+                        width: SELECTION_SIZE
+                    }
+                };
+
+
+                geometryObject = {
+                    type: "polygon",
+                    rings: geometry.rings,
+                    spatialReference: DEFAULT_SPATIAL_REFERENCE
+                }
+
         }
-      };
-              
 
-        geometryObject = {
-            type: "polygon",
-            rings: geometry.rings,
-            spatialReference:  DEFAULT_SPATIAL_REFERENCE
-        }
-
-    }
-
-        return   new GraphicClass({
+        return new GraphicClass({
             geometry: geometryObject,
             symbol: symbol,
-            
-            });
-  
+            name: name
+        });
+
     }
 
-    //load Utility Network and Map
-    function loadUtilityNetwork(utilityNetwork, itemId, mapViewDiv)
-        {
-            let token = portal.token;
-            let serviceJson  = utilityNetwork.featureServiceJson;
-            let serviceUrl = utilityNetwork.featureServiceUrl;
-            
-            require(["esri/Map", "esri/views/MapView", "esri/layers/FeatureLayer", "esri/layers/MapImageLayer","esri/WebMap", "esri/identity/IdentityManager", "esri/widgets/LayerList", "esri/layers/GraphicsLayer", "esri/Graphic"],
-             function (Map, MapView, FeatureLayer, MapLayer, WebMap,  IdentityManager, Toc, GraphicsLayer, Graphic){
-                 
+
+    function loadUtilityNetwork(utilityNetwork, itemId, mapViewDiv) {
+        let token = portal.token;
+        let serviceJson = utilityNetwork.featureServiceJson;
+        let serviceUrl = utilityNetwork.featureServiceUrl;
+
+        require(["esri/Map", "esri/views/MapView", "esri/layers/FeatureLayer", "esri/layers/MapImageLayer", "esri/WebMap", "esri/identity/IdentityManager", "esri/widgets/LayerList", "esri/layers/GraphicsLayer", "esri/Graphic"],
+            function(Map, MapView, FeatureLayer, MapLayer, WebMap, IdentityManager, Toc, GraphicsLayer, Graphic) {
+
                 GraphicClass = Graphic;
-                IdentityManager.registerToken({server: serviceUrl, token: token});
-                IdentityManager.registerToken({server: portal.url, token: token});
+                IdentityManager.registerToken({ server: serviceUrl, token: token });
+                IdentityManager.registerToken({ server: portal.url, token: token });
                 let mapviewDiv = document.getElementById(mapViewDiv);
 
                 while (mapviewDiv.firstChild) mapviewDiv.removeChild(mapviewDiv.firstChild);
                 //let map = new Map ({basemap:"streets-night-vector"}); //streets-night-vector
-                let webmap = new WebMap({portalItem : {id : itemId, 
-                portal : { 
-                    url: portal.url
-                }
-                }});
- 
-                mapView = new MapView({container: mapViewDiv, map : webmap})
+                let webmap = new WebMap({
+                    portalItem: {
+                        id: itemId,
+                        portal: {
+                            url: portal.url
+                        }
+                    }
+                });
+
+
+                mapView = new MapView({ container: mapViewDiv, map: webmap })
                 mapView.byId = layerId => mapView.map.layers.find(l => l.layerId == layerId);
-                    
-            })  
-        
-        }
+                mapView.when(() => {
+                    gl = new GraphicsLayer();
+                    gl.screenSizePerspectiveEnabled = true
+                    mapView.map.add(gl);
+                    let toc = new Toc({ view: mapView, position: "bottom-left" });
+                    mapView.ui.add(toc);
+                })
 
-        
-        function populateItems (myItems) {
 
-            //populate domain networks, clear list first
-            while(cmbDomainNetworks.firstChild)cmbDomainNetworks.removeChild(cmbDomainNetworks.firstChild);
-            while(cmbTiers.firstChild)cmbTiers.removeChild(cmbTiers.firstChild);
-            while(cmbSubnetworks.firstChild)cmbSubnetworks.removeChild(cmbSubnetworks.firstChild);
-            //the better way for this usecase is to send a filter to the server to only return web map but we want all items in the client just incase we want to do more.
-                
-            myItems.filter(a => a.type === "Web Map").forEach( a => {    
-                let listItem = document.createElement("option");
-                listItem.textContent = a.title;
-                listItem.url = a.url;
-                listItem.id = a.id;
-                cmbItems.appendChild(listItem);                                  
-                } )
 
-             if (cmbItems.options.length === 0) updateStatus("No web maps were found for user  " + portal.username + '. Create a webmap from Portal or publish one from Pro and try again');
-                    cmbItems.selectedIndex = -1;
-     
-        }
-
-        //draw the trace result.
-        function drawTraceResults(un, traceResults)
-        { 
-
-        let traceTime = (new Date().getTime() - traceStart);
-        let drawingTime;
-            //record trace time
-        console.log ("Trace time: " + traceTime + " ms");
-        let drawingStartTime = new Date().getTime();
-        let promises = [];
-        for (let layerId in traceResults.layers)
-        {
-            let layerObj = traceResults.layers[layerId];
-            let subOids = createGroupedArray(layerObj.objectIds, OID_PAGE);
-            subOids.forEach(oidGroup =>  promises.push(un.query(layerId, "1=1", layerObj, oidGroup.join(","))));            
-        }
-        //query all layers at once and wait until all results come in at
-        Promise.all(promises)
-        .then(rows => 
-            {   
-                mapView.graphics = [];
-                let graphics = [];
-                let geometries = [];
-                let featureLayer = mapView.byId(rows.layerId);
-                for (let featureSet of rows)
-                {
-                    let layerObj = featureSet.obj;
-                    if (featureSet.features != undefined)
-                    featureSet.features.forEach(g => graphics.push( getGraphic(layerObj.type, g.geometry)) )                    
-                 }
-                
-                drawingTime = (new Date().getTime() - drawingStartTime)
-                console.log ("Drawing time: " + drawingTime + " ms");
-                                 
-                 mapView.graphics.addMany(graphics);
-                 updateStatus("Trace completed successfully. Trace time: " + traceTime + " ms, Drawing Time: " + drawingTime + " ms");
-                 
             })
-        .catch(err => updateStatus("Error while parsing trace results"))
 
+    }
+
+
+
+    function buildTraceResults(featuresJson) {
+        //build the trace results so we group them by layerid
+        let traceResults = {};
+        traceResults.layers = [];
+        console.log("total elements " + featuresJson.traceResults.elements.length);
+        for (let f of featuresJson.traceResults.elements) {
+            if (f.enabled == false) {
+                console.log("found one element that is disabled " + f.globalId);
+                continue; //if the element is disabled skip it
+            }
+
+            let layerObj = un.getLayerIdfromSourceId(f.networkSourceId);
+            if (layerObj === undefined) continue;
+
+            let layerId = layerObj.layerId;
+
+            if (traceResults.layers[layerId] == undefined) traceResults.layers[layerId] = {};
+            if (traceResults.layers[layerId].objectIds == undefined) traceResults.layers[layerId].objectIds = [];
+            if (traceResults.layers[layerId].type == undefined) traceResults.layers[layerId].type = layerObj.type;
+
+            traceResults.layers[layerId].objectIds.push(f.objectId);
         }
 
-    
+        return traceResults;
 
-</script>
+    }
 
+
+    function drawTraceResults(un, traceResults, color = SELECTION_COLOR, clearGraphics = true) {
+
+        //console.log(JSON.stringify(traceResults))
+        let selectionTraceResult = buildTraceResults(traceResults);
+
+
+        let promises = [];
+        for (let layerId in selectionTraceResult.layers) {
+            let layerObj = selectionTraceResult.layers[layerId];
+            let subOids = createGroupedArray(layerObj.objectIds, QUERY_PAGE);
+            subOids.forEach(oidGroup => promises.push(un.query(layerId, "1=1", layerObj, oidGroup.join(","))));
+        }
+
+        Promise.all(promises).then(rows => {
+            if (clearGraphics) mapView.graphics = [];
+            let graphics = [];
+            let geometries = [];
+            let featureLayer = mapView.byId(rows.layerId);
+            for (let featureSet of rows) {
+                let layerObj = featureSet.obj;
+                if (featureSet.features != undefined)
+                    /*highlight bug not ready yet... 10.6.1 
+                    mapView.whenLayerView(featureLayer).then(layerView => 
+                    
+                    featureSet.features.forEach(f => layerView.highlight(f.attributes["OBJECTID"]))
+
+                     );*/
+
+                    for (let g of featureSet.features) {
+
+                        let graphic = getGraphic(layerObj.type, g.geometry, color);
+                        graphics.push(graphic);
+                    }
+
+
+            }
+
+            //  let selectionDurationms = new Date().getTime() - selectionStart;
+            // let drawingStartTime = new Date().getTime();
+            mapView.graphics.addMany(graphics);
+            //updateStatus("Done");
+            //mapview takes time to render.. 
+            // let drawingDurationms = new Date().getTime() - drawingStartTime;
+            //updateStatus(graphics.length + " features returned from the trace. Elapsed trace time : " + traceDurationms/1000 + " seconds. Elapsed selection time: " + selectionDurationms / 1000 + " seconds. Drawing duration time: " + drawingDurationms/ 1000 + " Total time: " + (traceDurationms + selectionDurationms + drawingDurationms)/ 1000 + " seconds" );
+
+
+            // mapView.goTo(graphics);
+            /*
+                 require(["esri/geometry/geometryEngineAsync"],  function(geometryEngine)
+                 {
+                    geometryEngine.union(geometries["point"]).then (unionLine=>  
+                    {
+                     let graphic = getGraphic("point",unionLine);
+                     graphics.push(graphic);        
+               
+                    mapView.graphics.addMany(graphics);
+                }
+                 ).catch(err=> alert("failed to union" + err));
+                 });*/
+
+
+        })
+
+    }
+
+    let getVal = function(obj, prop) {
+        prop = (prop + "").toLowerCase();
+        for (var p in obj) {
+            if (obj.hasOwnProperty(p) && prop == (p + "").toLowerCase()) {
+                return obj[p];
+                break;
+            }
+        }
+        return undefined;
+    }
+
+
+    // ST
+
+    function initApp() {
+        initUI();
+        connect();
+    }
+
+    function initUI() {
+        document.getElementById("optTools").addEventListener("click", function() {
+            switchPanels("tools");
+        });
+        document.getElementById("optSettings").addEventListener("click", function() {
+            switchPanels("settings");
+        });
+    }
+
+    function switchPanels(id) {
+        if (id === "settings") {
+            document.getElementById("optTools").style.display = "block";
+            document.getElementById("optSettings").style.display = "none";
+            document.getElementById("tools").style.display = "none";
+            document.getElementById("settings").style.display = "block";
+        } else {
+            document.getElementById("optTools").style.display = "none";
+            document.getElementById("optSettings").style.display = "block";
+            document.getElementById("tools").style.display = "block";
+            document.getElementById("settings").style.display = "none";
+        }
+    }
+
+    function connect() {
+        let portalUrl = document.getElementById("portalUrl").value;
+        let username = document.getElementById("username").value;
+        let password = document.getElementById("password").value;
+        //clear the list of services.
+        while (cmbItems.firstChild) cmbItems.removeChild(cmbItems.firstChild);
+        portal = new Portal(portalUrl, username, password);
+        portal.connect().then(token => {
+            //populate domain networks, clear list first
+            while (cmbDomainNetworks.firstChild) cmbDomainNetworks.removeChild(cmbDomainNetworks.firstChild);
+            while (cmbTiers.firstChild) cmbTiers.removeChild(cmbTiers.firstChild);
+            while (cmbSubnetworks.firstChild) cmbSubnetworks.removeChild(cmbSubnetworks.firstChild);
+            portal.items().then(myItems => {
+                myItems.forEach(a => {
+                        if (a.type === "Web Map") {
+                            let listItem = document.createElement("option");
+                            listItem.textContent = a.title;
+                            listItem.url = a.url;
+                            listItem.id = a.id;
+                            cmbItems.appendChild(listItem);
+                        }
+                    }
+
+                )
+                if (cmbItems.options.length === 0) {
+                    updateStatus("No web maps found for user  " + username);
+                    cmbItems.selectedIndex = -1;
+                } else {
+                    let event = new Event('change');
+                    cmbItems.dispatchEvent(event);
+                }
+            })
+
+
+        }).catch(rejected => updateStatus("Unable to connect to portal. " + rejected));
+    }
+    </script>
 </body>
+
 </html>

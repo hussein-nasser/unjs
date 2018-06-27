@@ -480,10 +480,11 @@ class UtilityNetwork {
                 reject({
                 status: this.status,
                 statusText: xhr.statusText
-                });
+                });s
             }
         };
-
+	
+	
         //xhr.onerror =   err => reject({status: this.status, statusText: xhr.statusText}) ;
         xhr.onerror =   err => reject(err) ;
         
