@@ -49,7 +49,7 @@ class UtilityNetwork {
             
                     thisObj.dataElement = undataElement.layerDataElements[0].dataElement;
                     thisObj.layerDefinition = unLayerDef
-                    thisObj.subnetLineLayerId = thisObj.getSubnetLineLayerId();                    
+                    //thisObj.subnetLineLayerId = thisObj.getSubnetLineLayerId();                    
                     resolve(thisObj);
                 }
                 else
@@ -142,24 +142,27 @@ class UtilityNetwork {
             return this.dataElement.terminalConfigurations.find(tc => tc.terminalConfigurationId === terminalConfigurationId);
         }
 
-        //get the subenetline layer
-        getSubnetLineLayerId()
-        {
-
-            //esriUNFCUTSubnetLine
-
-            let domainNetworks = this.dataElement.domainNetworks;
-            
-            for (let i = 0; i < domainNetworks.length; i ++)
-            {
-                let domainNetwork = domainNetworks[i];
-                //only search edgeSources since subnetline is a line
-                for (let j = 0; j < domainNetwork.edgeSources.length; j ++)
-                    if (domainNetwork.edgeSources[j].utilityNetworkFeatureClassUsageType === "esriUNFCUTSubnetLine")
-                        return domainNetwork.edgeSources[j].layerId;
-            }
-
-        }
+          //get the subenetline layer
+          getSubnetLineLayerId(domainNetworkName)
+          {
+  
+              //esriUNFCUTSubnetLine
+  
+              let domainNetworks = this.dataElement.domainNetworks;
+              
+              for (let i = 0; i < domainNetworks.length; i ++)
+              {
+                  let domainNetwork = domainNetworks[i];
+                  if (domainNetwork.domainNetworkName === domainNetworkName) {
+                  //only search edgeSources since subnetline is a line
+                  for (let j = 0; j < domainNetwork.edgeSources.length; j ++)
+                      if (domainNetwork.edgeSources[j].utilityNetworkFeatureClassUsageType === "esriUNFCUTSubnetLine")
+                          return domainNetwork.edgeSources[j].layerId;
+  
+                  }
+              }
+  
+          }
 
         //return the asset type 
         getAssetType(layerId, assetGroupCode, assetTypeCode)
